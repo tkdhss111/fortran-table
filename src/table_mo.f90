@@ -1,0 +1,912 @@
+module table_mo
+
+  implicit none
+
+  private
+  public :: LEN_C
+  public :: table_ty
+  public :: select, filter
+  public :: inner_join, left_join, right_join
+  public :: insert_or_replace, append
+  public :: union, intersect
+  public :: quicksort_integer, quicksort_string
+
+  integer,      parameter :: LEN_C = 20   ! Character length of each cell
+  character(2), parameter :: NA    = 'NA' ! N/A data notation
+
+  type table_ty
+
+    integer                       :: nrows, ncols
+    character(LEN_C), allocatable :: rownames(:), colnames(:)
+    character(LEN_C), allocatable :: cell(:, :)
+    character(LEN_C)              :: key  = 'key'
+    character(255)                :: name, file
+
+  contains
+
+    procedure :: init  => init_table
+    procedure :: select_integer, select_logical, select_character
+    generic   :: select => select_integer, select_logical, select_character
+    procedure :: filter_integer, filter_logical, filter_character
+    generic   :: filter => filter_integer, filter_logical, filter_character
+    procedure :: to_character_colindex, to_logical_colindex, to_integer_colindex, to_real_colindex
+    procedure :: to_character_colname,  to_logical_colname,  to_integer_colname,  to_real_colname
+    generic   :: to_character   => to_character_colindex,    to_character_colname 
+    generic   :: to_logical     => to_logical_colindex,      to_logical_colname 
+    generic   :: to_integer     => to_integer_colindex,      to_integer_colname 
+    generic   :: to_real        => to_real_colindex,         to_real_colname 
+    procedure :: from_character_colindex, from_logical_colindex, from_integer_colindex, from_real_colindex
+    procedure :: from_character_colname,  from_logical_colname,  from_integer_colname,  from_real_colname
+    generic   :: from_character => from_character_colindex, from_character_colname 
+    generic   :: from_logical   => from_logical_colindex,   from_logical_colname 
+    generic   :: from_integer   => from_integer_colindex,   from_integer_colname 
+    generic   :: from_real      => from_real_colindex,      from_real_colname 
+    procedure :: inner_join, left_join, right_join
+    procedure :: insert_or_replace, append
+    procedure :: write_csv, read_csv
+    procedure :: print => print_table
+    generic, public :: operator(+) => insert_or_replace
+    generic, public :: operator(*) => left_join
+
+  end type
+
+  interface select
+    procedure :: select_integer, select_logical, select_character
+  end interface
+
+  interface filter
+    procedure :: filter_integer, filter_logical, filter_character
+  end interface
+
+contains
+
+  pure subroutine init_table ( this, nrows, ncols, cell, rownames, colnames, name, file )
+
+    class(table_ty),           intent(inout) :: this
+    integer,                   intent(in)    :: nrows, ncols
+    character(*),    optional, intent(in)    :: cell(:, :)
+    character(*),    optional, intent(in)    :: rownames(:), colnames(:)
+    character(*),    optional, intent(in)    :: name, file
+
+    if ( allocated( this%rownames ) ) deallocate ( this%rownames )
+    if ( allocated( this%colnames ) ) deallocate ( this%colnames )
+    if ( allocated( this%cell     ) ) deallocate ( this%cell     )
+
+    allocate ( this%rownames(nrows) )
+    allocate ( this%colnames(ncols) )
+    allocate ( this%cell(nrows, ncols) )
+
+    this%nrows = nrows
+    this%ncols = ncols
+
+    if ( present( cell ) ) then
+      this%cell = cell
+    else
+      this%cell = ''
+    end if
+
+    if ( present( rownames ) ) then
+      this%rownames = rownames
+    else
+      this%rownames = ''
+    end if
+
+    if ( present( colnames ) ) then
+      this%colnames = colnames
+    else
+      this%colnames = ''
+    end if
+
+    if ( present( name ) ) then
+      this%name = name
+    else
+      this%name = ''
+    end if
+
+    if ( present( file ) ) then
+      this%file = file
+    else
+      this%file = ''
+    end if
+
+  end subroutine
+
+  !======================================================
+  ! Select
+  !
+  pure function select_integer ( table, cols ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    integer,         intent(in) :: cols(:)
+    type(table_ty)              :: table_
+
+    call table_%init (                 &
+      nrows    = table%nrows,          &
+      ncols    = size(cols),           &
+      rownames = table%rownames,       &
+      colnames = table%colnames(cols), &
+      cell     = table%cell(:, cols),  &
+      name     = table%name,           &
+      file     = table%file )
+
+  end function
+
+  pure function select_logical ( table, cols ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    logical,         intent(in) :: cols(:)
+    type(table_ty)              :: table_
+    integer, allocatable        :: jj(:)
+    integer j
+
+    jj = [( j, j = 1, size(cols) )]
+
+    table_ = select_integer ( table, pack( jj, cols ) )
+
+  end function
+
+  pure function select_character ( table, cols ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    character(*),    intent(in) :: cols(:)
+    type(table_ty)              :: table_
+    integer                     :: jj(size(cols))
+    integer j
+
+    do concurrent ( j = 1:size(cols) )
+      jj(j) = findloc( table%colnames, cols(j), dim = 1 )
+    end do
+
+    table_ = select_integer ( table, jj )
+
+  end function
+
+  !======================================================
+  ! Filter
+  !
+  pure function filter_integer ( table, rows ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    integer,         intent(in) :: rows(:)
+    type(table_ty)              :: table_
+
+    call table_%init (                 &
+      nrows    = size(rows),           &
+      ncols    = table%ncols,          &
+      rownames = table%rownames(rows), &
+      colnames = table%colnames,       &
+      cell     = table%cell(rows, :),  &
+      name     = table%name,           &
+      file     = table%file )
+
+  end function
+
+  pure function filter_logical ( table, rows ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    logical,         intent(in) :: rows(:)
+    type(table_ty)              :: table_
+    integer, allocatable        :: ii(:)
+    integer i
+
+    ii = [( i, i = 1, size(rows) )]
+
+    table_ = filter_integer ( table, pack( ii, rows ) )
+
+  end function
+
+  pure function filter_character ( table, rows ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    character(*),    intent(in) :: rows(:)
+    type(table_ty)              :: table_
+    integer                     :: ii(size(rows))
+    integer i
+
+    do concurrent ( i = 1:size(rows) )
+      ii(i) = findloc( table%rownames, rows(i), dim = 1 )
+    end do
+
+    table_ = filter_integer ( table, ii )
+
+  end function
+
+  !======================================================
+  ! Join Functions
+  !
+  pure function inner_join ( table1, table2 ) result ( table3 )
+
+    class(table_ty), intent(in)   :: table1
+    type(table_ty),  intent(in)   :: table2
+    type(table_ty)                :: table2_
+    type(table_ty)                :: table3
+    character(LEN_C), allocatable :: key3(:)
+    integer i1, i2, i3, j1, j2
+
+    ! Find key columns
+    j1 = findloc( table1%colnames, table1%key, dim = 1 )
+    j2 = findloc( table2%colnames, table2%key, dim = 1 )
+
+    associate ( key1 => table1%cell(:, j1), &
+                key2 => table2%cell(:, j2) )
+
+    call table2_%init ( nrows = table2%nrows, ncols = table2%ncols - 1 )
+
+    ! Eliminate key column from table2
+    if ( j2 == 1 ) then
+      table2_%cell = table2%cell(:, 2:table2%ncols)
+    else if ( j2 == table2%ncols ) then
+      table2_%cell = table2%cell(:, 1:table2%ncols - 1)
+    else
+      table2_%cell(:, 1:j2-1) = table2%cell(:, 1:j2-1)
+      table2_%cell(:, j2:)    = table2%cell(:, j2+1:)
+    end if
+
+    key3 = intersect ( key1, key2 )
+
+    !block
+    !  integer i
+    !  do i = 1, size(key3)
+    !    print *, trim(key3(i))
+    !  end do
+    !end block
+
+    call table3%init( nrows = size(key3), &
+                      ncols = table1%ncols + table2_%ncols )
+     
+    ! Copy record of table1 in table3 if the key matches
+    do concurrent ( i1 = 1:table1%nrows )
+      do i3 = 1, table3%nrows
+        if ( key1(i1) == key3(i3) ) then
+          table3%cell(i3, 1:table1%ncols) = table1%cell(i1, :)
+          exit
+        end if
+      end do
+    end do
+
+    ! Copy record of table2 in table3 if the key matches
+    do concurrent ( i2 = 1:table2_%nrows )
+      do i3 = 1, table3%nrows
+        if ( key2(i2) == key3(i3) ) then
+          table3%cell(i3, table1%ncols+1:table3%ncols) = table2_%cell(i2, :)
+          exit
+        end if
+      end do
+    end do
+
+    end associate
+
+  end function
+
+  pure function left_join ( table1, table2 ) result ( table3 )
+
+    class(table_ty), intent(in)   :: table1
+    type(table_ty),  intent(in)   :: table2
+    type(table_ty)                :: table2_
+    type(table_ty)                :: table3
+    integer i1, i2, j1, j2
+
+    call table3%init( nrows = table1%nrows, &
+                      ncols = table1%ncols + table2%ncols - 1 )
+
+    ! Copy all records of table1 in table3
+    table3%cell(:, 1:table1%ncols)              = table1%cell
+    table3%cell(:, table1%ncols+1:table3%ncols) = NA
+
+    ! Find key columns
+    j1 = findloc( table1%colnames, table1%key, dim = 1 )
+    j2 = findloc( table2%colnames, table2%key, dim = 1 )
+
+    associate ( key1 => table1%cell(:, j1), &
+                key2 => table2%cell(:, j2) )
+
+    call table2_%init ( nrows = table2%nrows, ncols = table2%ncols - 1 )
+
+    ! Eliminate key column from table2
+    if ( j2 == 1 ) then
+      table2_%cell = table2%cell(:, 2:table2%ncols)
+    else if ( j2 == table2%ncols ) then
+      table2_%cell = table2%cell(:, 1:table2%ncols - 1)
+    else
+      table2_%cell(:, 1:j2-1) = table2%cell(:, 1:j2-1)
+      table2_%cell(:, j2:)    = table2%cell(:, j2+1:)
+    end if
+     
+    ! Copy table2 in table3 if the key matches
+    do concurrent ( i1 = 1:table1%nrows )
+      do i2 = 1, table2_%nrows
+        if ( key1(i1) == key2(i2) ) then
+          table3%cell(i1, table1%ncols+1:) = table2_%cell(i2, :)
+          exit
+        end if
+      end do
+    end do
+
+    end associate
+
+  end function
+
+  pure function right_join ( table1, table2 ) result ( table3 )
+
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3_
+    type(table_ty)              :: table3
+
+    table3 = left_join ( table2, table1 )
+
+    table3_ = table3
+
+    table3%cell(:, 1:table1%ncols-1) = table3_%cell(:, table2%ncols+1:)
+    table3%cell(:, table1%ncols:)    = table3_%cell(:, 1:table2%ncols)
+
+  end function
+
+  pure function append ( table1, table2 ) result ( table3 )
+
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3
+
+    call table3%init( nrows = table1%nrows + table2%nrows, &
+                      ncols = table1%ncols )
+
+    table3%cell(1:table1%nrows,  :) = table1%cell
+    table3%cell(table1%nrows+1:, :) = table2%cell
+
+  end function
+
+  ! Insert or replace table2 into table1
+  pure function insert_or_replace ( table1, table2 ) result ( table3 )
+
+    class(table_ty),        intent(in) :: table1
+    type(table_ty),         intent(in) :: table2
+    type(table_ty)                     :: table3
+    type(table_ty)                     :: table3_
+    character(LEN_C), allocatable      :: key3(:)
+    integer, allocatable               :: ii(:) ! Quicksort indeces
+    integer i, i1, i2, j_key, k
+
+    ! Find key columns (shall be the same column index for both tables)
+    j_key = findloc( table1%colnames, table1%key, dim = 1 )
+
+    associate ( key1 => table1%cell(:, j_key), &
+                key2 => table2%cell(:, j_key) )
+
+    call table3_%init( nrows = size(union ( key1, key2 )), &
+                       ncols = table1%ncols )
+
+    table3_%cell(1:table1%nrows, :) = table1%cell
+
+    k = table1%nrows + 1
+
+    do i2 = 1, table2%nrows
+
+      ! Replace
+      do i1 = 1, table1%nrows
+        if ( key1(i1) == key2(i2) ) then
+          table3_%cell(i1, :) = table2%cell(i2, :)
+          exit
+        end if
+      end do
+
+      ! Append
+      if ( i1 > table1%nrows ) then
+        table3_%cell(k, :) = table2%cell(i2, :)
+        k = k + 1
+      end if
+
+    end do
+
+    end associate
+
+    ! Sort records
+    table3 = table3_
+
+    key3 = table3_%cell(:, j_key)
+    ii   = [( i, i = 1, table3%nrows )]
+
+    call quicksort_string ( key3, ii )
+
+    do concurrent ( i = 1:table3%nrows )
+      table3%cell(i, :) = table3_%cell(ii(i), :)
+    end do
+
+  end function
+
+
+  !======================================================
+  ! File I/O
+  !
+
+  subroutine write_csv ( this, file )
+
+    class(table_ty), intent(in) :: this
+    character(*),    intent(in) :: file
+    integer i, u
+
+    open ( newunit = u, file = file, status = 'unknown' )
+
+    write ( u, '( *(a, :, ",") )' ) this%colnames
+
+    do i = 1, this%nrows
+      write ( u, '( *(a, :, ",") )' ) this%cell(i, :)
+    end do
+
+    close ( u )
+
+  end subroutine
+
+  subroutine read_csv ( this, file )
+
+    class(table_ty), intent(inout) :: this
+    character(*),    intent(in)    :: file
+    character(LEN_C*100)           :: csvline
+    integer i, u, nrows, ncols
+
+    open ( newunit = u, file = file, status = 'old' )
+
+    nrows = count_rows ( u ) - 1
+    ncols = count_cols ( u )
+    if ( nrows == 0 ) stop 'No record is available'
+
+    call this%init ( nrows = nrows, ncols = ncols, file = file )
+
+    ! Colnames
+    read ( u, '(a)' ) csvline
+    this%colnames = get_cells_from_csvline ( csvline )
+
+    ! Records
+    do i = 1, nrows
+      read ( u, '(a)' ) csvline
+      this%cell(i, :) = get_cells_from_csvline ( csvline )
+    end do
+
+    close ( u )
+
+  end subroutine
+
+  function count_cols ( u ) result ( ncols )
+    integer, intent(in) :: u
+    integer             :: ncols
+    integer             :: iostat
+    character(1)        :: chr
+    ncols = 1
+    rewind ( u )
+    do
+      read ( u, '(a1)', advance = 'no', eor = 10, iostat = iostat ) chr
+      if ( iostat /= 0 ) then
+        ncols = 0
+        return
+      end if
+      if ( chr == ',' ) ncols = ncols + 1
+    end do
+    10 rewind(u)
+  end function
+
+  function count_rows ( u ) result ( nrows )
+    integer, intent(in) :: u
+    integer             :: nrows
+    integer             :: iostat
+    nrows = 0
+    rewind ( u )
+    do
+      read ( u, '()', end = 10, iostat = iostat )
+      if ( iostat /= 0 ) then
+        nrows = 0
+        return
+      end if
+      nrows = nrows + 1
+    end do
+    10 rewind ( u )
+  end function
+
+  pure function get_cells_from_csvline ( csvline ) result ( cells ) 
+
+    character(*), intent(in)      :: csvline
+    character(LEN_C), allocatable :: cells(:)
+    integer, allocatable          :: p(:) ! Comma position
+    integer len_line, i, nc
+
+    len_line = len_trim(csvline)
+
+    if ( len_line == 0 ) return
+
+    allocate ( p(len_line) ) ! Max: all commas in a line
+
+    ! Get positions of commas in a line
+    nc = 0
+    do i = 1, len_line
+      if ( csvline(i:i) /= ',' ) cycle
+      nc = nc + 1
+      p(nc) = i
+    end do
+
+    if ( allocated ( cells ) ) deallocate ( cells )
+    allocate ( cells(nc + 1) )
+
+    if ( nc == 0 ) then
+      allocate ( cells(1) )
+      cells = trim(csvline)
+      return
+    end if
+
+    ! Fetch a string between commas
+    cells = ''
+    cells(1)      = csvline(1:p(1) - 1)
+    cells(nc + 1) = csvline(p(nc) + 1:len_line)
+
+    do concurrent ( i = 1:nc - 1 )
+      cells(i + 1) = csvline(p(i) + 1:p(i + 1) - 1)
+    end do
+
+  end function
+
+  subroutine print_table ( this, n )
+
+    class(table_ty),   intent(in) :: this
+    integer, optional, intent(in) :: n
+    integer i, j
+
+    print *, repeat('=', LEN_C*this%ncols)
+    if ( this%name /= '' ) print *, 'name : ', trim(this%name)
+    if ( this%file /= '' ) print *, 'file : ', trim(this%file)
+    print *, 'nrows:', this%nrows
+    print *, 'ncols:', this%ncols
+
+    print *, repeat('=', LEN_C*this%ncols)
+    print *, [( this%colnames(j), j = 1, this%ncols )]
+    print *, repeat('-', LEN_C*this%ncols)
+
+    if ( present( n ) ) then
+      do i = 1, min(n, this%nrows)
+        print *, [( this%cell(i, j), j = 1, this%ncols )], i
+      end do
+    else
+      if ( this%nrows <= 15 ) then
+        do i = 1, this%nrows
+          print *, [( this%cell(i, j), j = 1, this%ncols )], i
+        end do
+      else
+        do i = 1, 5
+          print *, [( this%cell(i, j), j = 1, this%ncols )], i
+        end do
+        print *, ':'
+        print *, ':'
+        do i = this%nrows - 4, this%nrows
+          print *, [( this%cell(i, j), j = 1, this%ncols )], i
+        end do
+      end if
+    end if
+
+    print *, repeat('-', LEN_C*this%ncols)
+    print *, ''
+
+  end subroutine
+
+  !==============================================
+  ! Utility Functions
+  !
+
+  pure function union ( set1, set2 ) result ( cup )
+
+    character(LEN_C), intent(in)  :: set1(:)
+    character(LEN_C), intent(in)  :: set2(:)
+    character(LEN_C), allocatable :: set3(:)
+    character(LEN_C), allocatable :: cup(:)
+    logical, allocatable          :: duplicated(:)
+    integer i, j, n
+
+    set3 = [ set1, set2 ] ! character length shall be the same in both set1 and set2
+
+    n = size(set3)
+
+    allocate ( duplicated(n), source = .false. )
+
+    do i = 1, n
+      if ( .not. duplicated(i) ) then
+        do concurrent ( j = 1:n, j /= i )
+          if ( set3(i) == set3(j) ) then
+            duplicated(j) = .true.
+          end if
+        end do
+      end if
+    end do
+
+    !do i = 1, n
+    !  print *, i, trim(set3(i)), duplicated(i)
+    !end do
+
+    cup = pack( set3, .not. duplicated )
+
+  end function
+
+  pure function intersect ( set1, set2 ) result ( cap )
+
+    character(LEN_C), intent(in)  :: set1(:)
+    character(LEN_C), intent(in)  :: set2(:)
+    character(LEN_C), allocatable :: cap(:)
+    logical, allocatable          :: duplicated(:)
+    integer i1, i2, n1, n2
+
+    n1 = size(set1)
+    n2 = size(set2)
+    
+    if ( n1 < n2 ) then ! set1 is smaller
+
+      allocate ( duplicated(n1), source = .false. )
+
+      do concurrent ( i1 = 1:n1 )
+        do i2 = 1, n2
+          if ( set1(i1) == set2(i2) ) then
+            duplicated(i1) = .true.
+            exit
+          end if
+        end do
+      end do
+
+      !do i1 = 1, size(set1)
+      !  print *, 'intersect:', i1, trim(set1(i1)), duplicated(i1)
+      !end do
+
+      cap = pack( set1, duplicated )
+
+    else ! set2 is smaller
+
+      allocate ( duplicated(n2), source = .false. )
+
+      do concurrent ( i2 = 1:n2 )
+        do i1 = 1, n1
+          if ( set2(i2) == set1(i1) ) then
+            duplicated(i2) = .true.
+            exit
+          end if
+        end do
+      end do
+
+      !do i2 = 1, size(set2)
+      !  print *, 'intersect:', i2, trim(set2(i2)), duplicated(i2)
+      !end do
+
+      cap = pack( set2, duplicated )
+
+    end if
+
+  end function
+
+  pure subroutine quicksort_string ( keys, ii )
+
+    character(*), intent(in)    :: keys(:) ! Input array
+    integer,      intent(inout) :: ii(:)   ! Array of indeces
+    character(:), allocatable   :: str
+    integer i, p, i_a, a(size(keys))
+
+    do concurrent ( i = 1:size(keys) )
+      str = ''
+      do p = 1, len_trim(keys(i))
+        i_a = iachar(keys(i)(p:p))
+        if ( 48 <= i_a .and. i_a <= 57 ) then
+          str = str//keys(i)(p:p)
+        end if
+      end do
+      !print *, 'str:', trim(str)
+      read ( str, * ) a(i)
+    end do
+
+    call quicksort_integer ( a, ii, 1, size(a) )
+
+  end subroutine
+
+  pure recursive subroutine quicksort_integer ( a, ii, low, high )
+    integer, intent(inout) :: a(:)      ! The array to be sorted
+    integer, intent(inout) :: ii(:)     ! The indices to track sorted order
+    integer, intent(in)    :: low, high
+    integer i, pivot
+    if ( low < high ) then
+      call partition ( a, ii, low, high, pivot )
+      ! Sort the partitions concurrently
+      do concurrent ( i = 1:2 )
+        select case ( i )
+        case ( 1 )
+          call quicksort_integer ( a, ii, low, pivot - 1 )
+        case ( 2 )
+          call quicksort_integer ( a, ii, pivot + 1, high )
+        end select
+      end do
+    end if
+  contains
+    pure subroutine partition ( a, ii, low, high, pivot )
+      integer, intent(inout) :: a(:)      ! The array to partition
+      integer, intent(inout) :: ii(:)     ! The indices array
+      integer, intent(in)    :: low, high ! The range of the array
+      integer, intent(out)   :: pivot     ! The pivot index
+      integer i, j, temp, pivot_value
+      pivot_value = a(high)
+      i = low - 1
+      do j = low, high - 1
+        if ( a(j) <= pivot_value ) then
+          i = i + 1
+          temp = a(i)
+          a(i) = a(j)
+          a(j) = temp
+          temp = ii(i)
+          ii(i) = ii(j)
+          ii(j) = temp
+        end if
+      end do
+      temp = a(i + 1)
+      a(i + 1) = a(high)
+      a(high) = temp
+      temp = ii(i + 1)
+      ii(i + 1) = ii(high)
+      ii(high) = temp
+      pivot = i + 1
+    end subroutine
+  end subroutine
+
+  !==============================================
+  ! Column Converter
+  !
+
+  !----------------------------------------------
+  ! Column (character) to another type'
+  !
+  pure function to_character_colindex ( table, col ) result ( cvals )
+    class(table_ty), intent(in) :: table
+    integer,         intent(in) :: col
+    character(LEN_C)            :: cvals(table%nrows) 
+    cvals = table%cell(:, col)
+  end function
+
+  pure function to_character_colname ( table, col ) result ( cvals )
+    class(table_ty), intent(in) :: table
+    character(*),    intent(in) :: col
+    character(LEN_C)            :: cvals(table%nrows) 
+    cvals = table%cell(:, findloc( table%colnames, col, dim = 1 ))
+  end function
+
+  pure function to_logical_colindex ( table, col ) result ( lvals )
+    class(table_ty), intent(in) :: table
+    integer,         intent(in) :: col
+    logical                     :: lvals(table%nrows) 
+    integer i
+    do concurrent ( i = 1:table%nrows )
+      read ( table%cell(i, col), * ) lvals(i)
+    end do
+  end function
+
+  pure function to_logical_colname ( table, col ) result ( lvals )
+    class(table_ty), intent(in) :: table
+    character(*),    intent(in) :: col
+    logical                     :: lvals(table%nrows) 
+    integer i, j
+    j = findloc( table%colnames, col, dim = 1 )
+    do concurrent ( i = 1:table%nrows )
+      read ( table%cell(i, j), * ) lvals(i)
+    end do
+  end function
+
+  pure function to_integer_colindex ( table, col ) result ( ivals )
+    class(table_ty), intent(in) :: table
+    integer,         intent(in) :: col
+    integer                     :: ivals(table%nrows) 
+    integer i
+    do concurrent ( i = 1:table%nrows )
+      read ( table%cell(i, col), * ) ivals(i)
+    end do
+  end function
+
+  pure function to_integer_colname ( table, col ) result ( ivals )
+    class(table_ty), intent(in) :: table
+    character(*),    intent(in) :: col
+    integer                     :: ivals(table%nrows) 
+    integer i, j
+    j = findloc( table%colnames, col, dim = 1 )
+    do concurrent ( i = 1:table%nrows )
+      read ( table%cell(i, j), * ) ivals(i)
+    end do
+  end function
+
+  pure function to_real_colindex ( table, col ) result ( rvals )
+    class(table_ty), intent(in) :: table
+    integer,         intent(in) :: col
+    real                        :: rvals(table%nrows) 
+    integer i
+    do concurrent ( i = 1:table%nrows )
+      read ( table%cell(i, col), * ) rvals(i)
+    end do
+  end function
+
+  pure function to_real_colname ( table, col ) result ( rvals )
+    class(table_ty), intent(in) :: table
+    character(*),    intent(in) :: col
+    real                        :: rvals(table%nrows) 
+    integer i, j
+    j = findloc( table%colnames, col, dim = 1 )
+    do concurrent ( i = 1:table%nrows )
+      read ( table%cell(i, j), * ) rvals(i)
+    end do
+  end function
+
+  !----------------------------------------------
+  ! Another type to column (character)
+  !
+
+  pure subroutine from_character_colindex ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    character(*),    intent(in)    :: vals(table%nrows) 
+    integer,         intent(in)    :: col
+    table%cell(:, col) = vals
+  end subroutine
+
+  pure subroutine from_character_colname ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    character(*),    intent(in)    :: vals(table%nrows) 
+    character(*),    intent(in)    :: col
+    table%cell(:, findloc( table%colnames, col, dim = 1 )) = vals
+  end subroutine
+
+  pure subroutine from_logical_colindex ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    logical,         intent(in)    :: vals(table%nrows) 
+    integer,         intent(in)    :: col
+    integer i
+    do concurrent ( i = 1:table%nrows )
+      write ( table%cell(i, col), * ) vals(i)
+    end do
+  end subroutine
+
+  pure subroutine from_logical_colname ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    logical,         intent(in)    :: vals(table%nrows)
+    character(*),    intent(in)    :: col
+    integer i, j
+    j = findloc( table%colnames, col, dim = 1 )
+    do concurrent ( i = 1:table%nrows )
+     write ( table%cell(i, j), * ) vals(i)
+    end do
+  end subroutine
+
+  pure subroutine from_integer_colindex ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    integer,         intent(in)    :: vals(table%nrows)
+    integer,         intent(in)    :: col
+    integer i
+    do concurrent ( i = 1:table%nrows )
+      write ( table%cell(i, col), * ) vals(i)
+    end do
+  end subroutine
+
+  pure subroutine from_integer_colname ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    integer,         intent(in)    :: vals(table%nrows)
+    character(*),    intent(in)    :: col
+    integer i, j
+    j = findloc( table%colnames, col, dim = 1 )
+    do concurrent ( i = 1:table%nrows )
+     write ( table%cell(i, j), * ) vals(i)
+    end do
+  end subroutine
+
+  pure subroutine from_real_colindex ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    real,            intent(in)    :: vals(table%nrows)
+    integer,         intent(in)    :: col
+    integer i
+    do concurrent ( i = 1:table%nrows )
+      write ( table%cell(i, col), * ) vals(i)
+    end do
+  end subroutine
+
+  pure subroutine from_real_colname ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    real,            intent(in)    :: vals(table%nrows)
+    character(*),    intent(in)    :: col
+    integer i, j
+    j = findloc( table%colnames, col, dim = 1 )
+    do concurrent ( i = 1:table%nrows )
+     write ( table%cell(i, j), * ) vals(i)
+    end do
+  end subroutine
+
+end module
