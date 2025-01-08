@@ -11,7 +11,7 @@ module table_mo
   public :: union, intersect
   public :: quicksort_integer, quicksort_string
 
-  integer,      parameter :: LEN_C = 20   ! Character length of each cell
+  integer,      parameter :: LEN_C = 24   ! Character length of each cell
   character(2), parameter :: NA    = 'NA' ! N/A data notation
 
   type table_ty
@@ -216,12 +216,11 @@ contains
   !
   pure function inner_join ( table1, table2 ) result ( table3 )
 
-    class(table_ty), intent(in)   :: table1
-    type(table_ty),  intent(in)   :: table2
-    type(table_ty)                :: table2_
-    type(table_ty)                :: table3
-    character(LEN_C), allocatable :: key3(:)
-    integer i1, i2, i3, j1, j2
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3
+    logical                     :: matches(table1%nrows, table2%nrows)
+    integer i, j, k, j1, j2
 
     ! Find key columns
     j1 = findloc( table1%colnames, table1%key, dim = 1 )
@@ -230,46 +229,23 @@ contains
     associate ( key1 => table1%cell(:, j1), &
                 key2 => table2%cell(:, j2) )
 
-    call table2_%init ( nrows = table2%nrows, ncols = table2%ncols - 1 )
-
-    ! Eliminate key column from table2
-    if ( j2 == 1 ) then
-      table2_%cell = table2%cell(:, 2:table2%ncols)
-    else if ( j2 == table2%ncols ) then
-      table2_%cell = table2%cell(:, 1:table2%ncols - 1)
-    else
-      table2_%cell(:, 1:j2-1) = table2%cell(:, 1:j2-1)
-      table2_%cell(:, j2:)    = table2%cell(:, j2+1:)
-    end if
-
-    key3 = intersect ( key1, key2 )
-
-    !block
-    !  integer i
-    !  do i = 1, size(key3)
-    !    print *, trim(key3(i))
-    !  end do
-    !end block
-
-    call table3%init( nrows = size(key3), &
-                      ncols = table1%ncols + table2_%ncols )
-     
-    ! Copy record of table1 in table3 if the key matches
-    do concurrent ( i1 = 1:table1%nrows )
-      do i3 = 1, table3%nrows
-        if ( key1(i1) == key3(i3) ) then
-          table3%cell(i3, 1:table1%ncols) = table1%cell(i1, :)
-          exit
-        end if
-      end do
+    ! Find matching combinations
+    matches = .false.
+    do concurrent ( i = 1:table1%nrows, j = 1:table2%nrows )
+      if ( key1(i) == key2(j) ) then
+        matches(i, j) = .true.
+      end if
     end do
 
-    ! Copy record of table2 in table3 if the key matches
-    do concurrent ( i2 = 1:table2_%nrows )
-      do i3 = 1, table3%nrows
-        if ( key2(i2) == key3(i3) ) then
-          table3%cell(i3, table1%ncols+1:table3%ncols) = table2_%cell(i2, :)
-          exit
+    call table3%init( nrows = count(matches), &
+                      ncols = table1%ncols + table2%ncols )
+    k = 0
+    do i = 1, table1%nrows
+      do j = 1, table2%nrows
+        if ( matches(i, j) ) then
+          k = k + 1
+          table3%cell(k, 1:table1%ncols)  = table1%cell(i, 1:table1%ncols)
+          table3%cell(k, table1%ncols+1:) = table2%cell(j, :)
         end if
       end do
     end do
@@ -280,18 +256,17 @@ contains
 
   pure function left_join ( table1, table2 ) result ( table3 )
 
-    class(table_ty), intent(in)   :: table1
-    type(table_ty),  intent(in)   :: table2
-    type(table_ty)                :: table2_
-    type(table_ty)                :: table3
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3
     integer i1, i2, j1, j2
 
     call table3%init( nrows = table1%nrows, &
-                      ncols = table1%ncols + table2%ncols - 1 )
+                      ncols = table1%ncols + table2%ncols )
 
     ! Copy all records of table1 in table3
-    table3%cell(:, 1:table1%ncols)              = table1%cell
-    table3%cell(:, table1%ncols+1:table3%ncols) = NA
+    table3%cell(:, 1:table1%ncols)  = table1%cell
+    table3%cell(:, table1%ncols+1:) = NA
 
     ! Find key columns
     j1 = findloc( table1%colnames, table1%key, dim = 1 )
@@ -299,24 +274,12 @@ contains
 
     associate ( key1 => table1%cell(:, j1), &
                 key2 => table2%cell(:, j2) )
-
-    call table2_%init ( nrows = table2%nrows, ncols = table2%ncols - 1 )
-
-    ! Eliminate key column from table2
-    if ( j2 == 1 ) then
-      table2_%cell = table2%cell(:, 2:table2%ncols)
-    else if ( j2 == table2%ncols ) then
-      table2_%cell = table2%cell(:, 1:table2%ncols - 1)
-    else
-      table2_%cell(:, 1:j2-1) = table2%cell(:, 1:j2-1)
-      table2_%cell(:, j2:)    = table2%cell(:, j2+1:)
-    end if
      
     ! Copy table2 in table3 if the key matches
     do concurrent ( i1 = 1:table1%nrows )
-      do i2 = 1, table2_%nrows
+      do i2 = 1, table2%nrows
         if ( key1(i1) == key2(i2) ) then
-          table3%cell(i1, table1%ncols+1:) = table2_%cell(i2, :)
+          table3%cell(i1, table1%ncols+1:) = table2%cell(i2, :)
           exit
         end if
       end do
@@ -337,8 +300,8 @@ contains
 
     table3_ = table3
 
-    table3%cell(:, 1:table1%ncols-1) = table3_%cell(:, table2%ncols+1:)
-    table3%cell(:, table1%ncols:)    = table3_%cell(:, 1:table2%ncols)
+    table3%cell(:, 1:table1%ncols)  = table3_%cell(:, table2%ncols+1:)
+    table3%cell(:, table1%ncols+1:) = table3_%cell(:, 1:table2%ncols)
 
   end function
 
@@ -621,7 +584,8 @@ contains
 
   end function
 
-  pure function intersect ( set1, set2 ) result ( cap )
+  !pure function intersect ( set1, set2 ) result ( cap )
+  function intersect ( set1, set2 ) result ( cap )
 
     character(LEN_C), intent(in)  :: set1(:)
     character(LEN_C), intent(in)  :: set2(:)
@@ -634,24 +598,32 @@ contains
     
     if ( n1 < n2 ) then ! set1 is smaller
 
+print *, 'intersect: n1 < n2'
+
       allocate ( duplicated(n1), source = .false. )
 
       do concurrent ( i1 = 1:n1 )
+      !do i1 = 1, n1
         do i2 = 1, n2
           if ( set1(i1) == set2(i2) ) then
             duplicated(i1) = .true.
+            !print *, 'intersect:', i1, trim(set1(i1)), duplicated(i1), i1, '/', n1
             exit
           end if
         end do
       end do
 
-      !do i1 = 1, size(set1)
-      !  print *, 'intersect:', i1, trim(set1(i1)), duplicated(i1)
-      !end do
+      do i1 = 1, size(set1)
+        print *, 'intersect:', i1, trim(set1(i1)), duplicated(i1)
+      end do
 
+print *, 'intersect: S: pack'
       cap = pack( set1, duplicated )
+print *, 'intersect: E: pack'
 
     else ! set2 is smaller
+
+print *, 'intersect: n1 >= n2'
 
       allocate ( duplicated(n2), source = .false. )
 
@@ -664,9 +636,9 @@ contains
         end do
       end do
 
-      !do i2 = 1, size(set2)
-      !  print *, 'intersect:', i2, trim(set2(i2)), duplicated(i2)
-      !end do
+      do i2 = 1, size(set2)
+        print *, 'intersect:', i2, trim(set2(i2)), duplicated(i2)
+      end do
 
       cap = pack( set2, duplicated )
 

@@ -109,11 +109,12 @@ program unit_test_table_mo
   print *, 'Test 4: Inner Join'
   print *, '=========================================='
 
-  call table1%init ( nrows = 3, ncols = 3 )
+  call table1%init ( nrows = 4, ncols = 3 )
   table1%colnames   = [ 'key    ', 't1_col2', 't1_col3' ]
   table1%cell(1, :) = [ 'key1 ',   't1_12',   't1_13'   ]
   table1%cell(2, :) = [ 'key2 ',   't1_22',   't1_23'   ]
   table1%cell(3, :) = [ 'key3 ',   't1_32',   't1_33'   ]
+  table1%cell(4, :) = [ 'key2 ',   't1_42',   't1_43'   ] ! Duplicated key
 
   call table2%init ( nrows = 2, ncols = 3 )
   table2%colnames   = [ 't2_col1', 'key    ', 't2_col3' ]
@@ -175,7 +176,7 @@ program unit_test_table_mo
   table3 = right_join ( table1, table2 )
 
   call table3%print
-
+stop
   print *, '-----------------------------------------'
   print *, 'Test 6-2: as type-bound procedure'
   print *, '-----------------------------------------'
@@ -187,6 +188,13 @@ program unit_test_table_mo
   print *, '=========================================='
   print *, 'Test 7: Insert or Replace'
   print *, '=========================================='
+
+  ! key shall be unique for insert or replace operation
+  call table1%init ( nrows = 3, ncols = 3 )
+  table1%colnames   = [ 'key    ', 't1_col2', 't1_col3' ]
+  table1%cell(1, :) = [ 'key1 ',   't1_12',   't1_13'   ]
+  table1%cell(2, :) = [ 'key2 ',   't1_22',   't1_23'   ]
+  table1%cell(3, :) = [ 'key3 ',   't1_32',   't1_33'   ]
 
   print *, '-----------------------------------------'
   print *, 'Test 7-1: with function'
