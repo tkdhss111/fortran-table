@@ -364,7 +364,7 @@ contains
     type(table_ty)                     :: table3
     type(table_ty)                     :: table3_
     character(LEN_C), allocatable      :: key3(:)
-    integer, allocatable               :: ii(:) ! Quicksort indeces
+    integer, allocatable               :: ii(:) ! Quicksort indices
     integer i, i1, i2, j_key, k
 
     ! Find key columns (shall be the same column index for both tables)
@@ -677,7 +677,7 @@ contains
   pure subroutine quicksort_string ( keys, ii )
 
     character(*), intent(in)    :: keys(:) ! Input array
-    integer,      intent(inout) :: ii(:)   ! Array of indeces
+    integer,      intent(inout) :: ii(:)   ! Array of indices
     character(:), allocatable   :: str
     integer i, p, i_a, a(size(keys))
 

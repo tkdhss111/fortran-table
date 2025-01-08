@@ -1,14 +1,14 @@
 # fortran-table
 
-Fortran Pure Functions for Table Manupulation
+Fortran Pure Functions for Table Manipulation
 
-- SQL-like table manupulation
+- SQL-like table manipulation
 - All data are stored as character
 - No database API is used
 
 ## Initialization
 
-1. Minimum Initilization
+1. Minimum Initialization
 
 ```
 call table%init ( nrows = 3, ncols = 3 )
@@ -38,7 +38,7 @@ or
 table1 = table%select( cols ) 
 ```
 
-**cols** shall be column names / indeces / logical vector 
+**cols** shall be column names / indices / logical vector 
 
 ```
 table1 = select ( table, [ "col3", "col2" ] )
@@ -62,7 +62,7 @@ or
 table1 = table%filter( rows ) 
 ```
 
-**rows** shall be row names / indeces / logical vector 
+**rows** shall be row names / indices / logical vector 
 
 ```
 table1 = filter ( table, [ "row3", "row1" ] )
