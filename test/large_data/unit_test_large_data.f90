@@ -1,0 +1,98 @@
+program unit_test_table_mo
+
+  use table_mo
+  use dt_mo, only: tm_ty
+
+  implicit none
+
+  type(table_ty) :: table, table1, table2, table3, table4
+  integer i
+
+  type(tm_ty) :: tm
+
+  print *, '=========================================='
+  print *, 'Test: Large Data Set Processing' 
+  print *, '=========================================='
+
+  call table3%read_csv ( file = 'test_table_nrows10k.csv' )
+  call table4%read_csv ( file = 'test_table_nrows165k.csv' )
+
+  call table3%print
+  call table4%print
+
+  table3%key = 'date'
+  table4%key = 'date'
+
+  print *, '------------------------------------------'
+  print *, 'Test: Inner Join (impure function) ... fast (-O3: <2sec)' 
+  print *, '------------------------------------------'
+
+  call tm%tic ()
+
+  table = inner_join ( table3, table4 ) 
+
+  call table%print
+
+  call tm%toc ()
+
+  print *, '------------------------------------------'
+  print *, 'Test: Inner Join (pure function) ... slow (-O3: 29sec)' 
+  print *, '------------------------------------------'
+
+  call tm%tic ()
+
+  table = inner_join_pure ( table3, table4 ) 
+
+  call table%print
+
+  call tm%toc ()
+
+  print *, '------------------------------------------'
+  print *, 'Test: Left Join (impure function) ... fast (-O3: <2sec)' 
+  print *, '------------------------------------------'
+
+  call tm%tic ()
+
+  table = left_join ( table3, table4 ) 
+
+  call table%print
+
+  call tm%toc ()
+
+  print *, '------------------------------------------'
+  print *, 'Test: Left Join (pure function) ... slow (-O3: 28sec)' 
+  print *, '------------------------------------------'
+
+  call tm%tic ()
+
+  table = left_join_pure ( table3, table4 ) 
+
+  call table%print
+
+  call tm%toc ()
+
+  print *, '------------------------------------------'
+  print *, 'Test: Right Join (impure function) ... fast (-O3: <2sec)' 
+  print *, '------------------------------------------'
+
+  call tm%tic ()
+
+  table = right_join ( table3, table4 ) 
+
+  call table%print
+
+  call tm%toc ()
+
+  print *, '------------------------------------------'
+  print *, 'Test: Right Join (pure function) ... slow (-O3: 44sec)' 
+  print *, '------------------------------------------'
+
+  call tm%tic ()
+
+  table = right_join_pure ( table3, table4 ) 
+
+  call table%print
+
+  call tm%toc ()
+
+end program

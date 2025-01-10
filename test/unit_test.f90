@@ -116,10 +116,11 @@ program unit_test_table_mo
   table1%cell(3, :) = [ 'key3 ',   't1_32',   't1_33'   ]
   table1%cell(4, :) = [ 'key2 ',   't1_42',   't1_43'   ] ! Duplicated key
 
-  call table2%init ( nrows = 2, ncols = 3 )
+  call table2%init ( nrows = 3, ncols = 3 )
   table2%colnames   = [ 't2_col1', 'key    ', 't2_col3' ]
-  table2%cell(1, :) = [ 't2_12',   'key3 ',   't2_13'   ]
-  table2%cell(2, :) = [ 't2_22',   'key2 ',   't2_23'   ]
+  table2%cell(1, :) = [ 't2_11',   'key3 ',   't2_13'   ]
+  table2%cell(2, :) = [ 't2_21',   'key2 ',   't2_23'   ]
+  table2%cell(3, :) = [ 't2_31',   'key5 ',   't2_33'   ]
 
   print *, '-----------------------------------------'
   print *, 'Test 4-1: with function'
@@ -134,6 +135,14 @@ program unit_test_table_mo
   print *, '-----------------------------------------'
 
   table3 = table1%inner_join ( table2 )
+
+  call table3%print
+
+  print *, '-----------------------------------------'
+  print *, 'Test 4-3: with pure function (slow with large tables)'
+  print *, '-----------------------------------------'
+
+  table3 = inner_join_pure ( table1, table2 )
 
   call table3%print
 
@@ -165,6 +174,14 @@ program unit_test_table_mo
 
   call table3%print
 
+  print *, '-----------------------------------------'
+  print *, 'Test 5-4: with pure function (slow with large tables)'
+  print *, '-----------------------------------------'
+
+  table3 = left_join_pure ( table1, table2 )
+
+  call table3%print
+
   print *, '=========================================='
   print *, 'Test 6: Right Join'
   print *, '=========================================='
@@ -176,12 +193,20 @@ program unit_test_table_mo
   table3 = right_join ( table1, table2 )
 
   call table3%print
-stop
+
   print *, '-----------------------------------------'
   print *, 'Test 6-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%right_join ( table2 )
+
+  call table3%print
+
+  print *, '-----------------------------------------'
+  print *, 'Test 6-3: with pure function (slow with large tables)'
+  print *, '-----------------------------------------'
+
+  table3 = right_join_pure ( table1, table2 )
 
   call table3%print
 

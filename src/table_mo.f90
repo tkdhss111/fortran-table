@@ -7,12 +7,13 @@ module table_mo
   public :: table_ty
   public :: select, filter
   public :: inner_join, left_join, right_join
+  public :: inner_join_pure, left_join_pure, right_join_pure
   public :: insert_or_replace, append
   public :: union, intersect
   public :: quicksort_integer, quicksort_string
 
-  integer,      parameter :: LEN_C = 24   ! Character length of each cell
-  character(2), parameter :: NA    = 'NA' ! N/A data notation
+  integer,          parameter :: LEN_C = 24   ! Character length of each cell
+  character(LEN_C), parameter :: NA    = 'NA' ! N/A data notation
 
   type table_ty
 
@@ -154,7 +155,7 @@ contains
     integer j
 
     do concurrent ( j = 1:size(cols) )
-      jj(j) = findloc( table%colnames, cols(j), dim = 1 )
+      jj(j) = findloc( adjustl(table%colnames), cols(j), dim = 1 )
     end do
 
     table_ = select_integer ( table, jj )
@@ -204,7 +205,7 @@ contains
     integer i
 
     do concurrent ( i = 1:size(rows) )
-      ii(i) = findloc( table%rownames, rows(i), dim = 1 )
+      ii(i) = findloc( adjustl(table%rownames), rows(i), dim = 1 )
     end do
 
     table_ = filter_integer ( table, ii )
@@ -214,82 +215,99 @@ contains
   !======================================================
   ! Join Functions
   !
-  pure function inner_join ( table1, table2 ) result ( table3 )
+
+  function inner_join ( table1, table2 ) result ( table3 )
 
     class(table_ty), intent(in) :: table1
     type(table_ty),  intent(in) :: table2
     type(table_ty)              :: table3
-    logical                     :: matches(table1%nrows, table2%nrows)
-    integer i, j, k, j1, j2
+    integer i, i1, i2, j1, j2, u, nrows
 
     ! Find key columns
-    j1 = findloc( table1%colnames, table1%key, dim = 1 )
-    j2 = findloc( table2%colnames, table2%key, dim = 1 )
+    j1 = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
+    j2 = findloc( adjustl(table2%colnames), table2%key, dim = 1 )
+
+    open ( newunit = u, status = 'scratch', form = 'unformatted' )
 
     associate ( key1 => table1%cell(:, j1), &
                 key2 => table2%cell(:, j2) )
 
-    ! Find matching combinations
-    matches = .false.
-    do concurrent ( i = 1:table1%nrows, j = 1:table2%nrows )
-      if ( key1(i) == key2(j) ) then
-        matches(i, j) = .true.
+    nrows = 0
+    do i1 = 1, table1%nrows
+      do i2 = 1, table2%nrows
+        if ( key1(i1) == key2(i2) ) then
+          write ( u ) table1%cell(i1, :), table2%cell(i2, :) 
+          nrows = nrows + 1
+        end if
+      end do
+    end do
+
+    end associate
+
+    rewind ( u )
+
+    call table3%init( nrows = nrows, &
+                      ncols = table1%ncols + table2%ncols, &
+                      colnames = [ table1%colnames, table2%colnames ] )
+
+    do i = 1, table3%nrows
+      read ( u ) table3%cell(i, :)
+    end do
+
+    close ( u )
+
+  end function
+
+  function left_join ( table1, table2 ) result ( table3 )
+
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3
+    logical                     :: found
+    integer i, i1, i2, j1, j2, u, nrows
+
+    ! Find key columns
+    j1 = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
+    j2 = findloc( adjustl(table2%colnames), table2%key, dim = 1 )
+
+    open ( newunit = u, status = 'scratch', form = 'unformatted' )
+
+    associate ( key1 => table1%cell(:, j1), &
+                key2 => table2%cell(:, j2) )
+
+    nrows = 0
+    do i1 = 1, table1%nrows
+      found = .false.
+      do i2 = 1, table2%nrows
+        if ( key1(i1) == key2(i2) ) then
+          nrows = nrows + 1
+          found = .true.
+          write ( u ) table1%cell(i1, :), table2%cell(i2, :) 
+        end if
+      end do
+      if ( .not. found ) then
+        nrows = nrows + 1
+        write ( u ) table1%cell(i1, :), repeat( NA, table2%ncols )
       end if
     end do
 
-    call table3%init( nrows = count(matches), &
-                      ncols = table1%ncols + table2%ncols )
-    k = 0
-    do i = 1, table1%nrows
-      do j = 1, table2%nrows
-        if ( matches(i, j) ) then
-          k = k + 1
-          table3%cell(k, 1:table1%ncols)  = table1%cell(i, 1:table1%ncols)
-          table3%cell(k, table1%ncols+1:) = table2%cell(j, :)
-        end if
-      end do
+    end associate
+
+    rewind ( u )
+
+    call table3%init ( nrows = nrows, &
+                       ncols = table1%ncols + table2%ncols, &
+                       colnames = [ table1%colnames, table2%colnames ] )
+
+    do i = 1, table3%nrows
+      read ( u ) table3%cell(i, :)
     end do
 
-    end associate
+    close ( u )
 
   end function
 
-  pure function left_join ( table1, table2 ) result ( table3 )
-
-    class(table_ty), intent(in) :: table1
-    type(table_ty),  intent(in) :: table2
-    type(table_ty)              :: table3
-    integer i1, i2, j1, j2
-
-    call table3%init( nrows = table1%nrows, &
-                      ncols = table1%ncols + table2%ncols )
-
-    ! Copy all records of table1 in table3
-    table3%cell(:, 1:table1%ncols)  = table1%cell
-    table3%cell(:, table1%ncols+1:) = NA
-
-    ! Find key columns
-    j1 = findloc( table1%colnames, table1%key, dim = 1 )
-    j2 = findloc( table2%colnames, table2%key, dim = 1 )
-
-    associate ( key1 => table1%cell(:, j1), &
-                key2 => table2%cell(:, j2) )
-     
-    ! Copy table2 in table3 if the key matches
-    do concurrent ( i1 = 1:table1%nrows )
-      do i2 = 1, table2%nrows
-        if ( key1(i1) == key2(i2) ) then
-          table3%cell(i1, table1%ncols+1:) = table2%cell(i2, :)
-          exit
-        end if
-      end do
-    end do
-
-    end associate
-
-  end function
-
-  pure function right_join ( table1, table2 ) result ( table3 )
+  function right_join ( table1, table2 ) result ( table3 )
 
     class(table_ty), intent(in) :: table1
     type(table_ty),  intent(in) :: table2
@@ -300,6 +318,125 @@ contains
 
     table3_ = table3
 
+    table3%colnames = [ table1%colnames, table2%colnames ]
+    table3%cell(:, 1:table1%ncols)  = table3_%cell(:, table2%ncols+1:)
+    table3%cell(:, table1%ncols+1:) = table3_%cell(:, 1:table2%ncols)
+
+  end function
+
+  pure function inner_join_pure ( table1, table2 ) result ( table3 )
+  ! Note.
+  ! Use inner_join (impure) function instead
+  ! if table sizes are large and calculation is slow.
+
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3
+    logical                     :: matches(table1%nrows, table2%nrows) ! can be very large
+    integer i1, i2, k, j1, j2
+
+    ! Find key columns
+    j1 = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
+    j2 = findloc( adjustl(table2%colnames), table2%key, dim = 1 )
+
+    associate ( key1 => table1%cell(:, j1), &
+                key2 => table2%cell(:, j2) )
+
+    ! Find matching combinations
+    matches = .false.
+    do concurrent ( i1 = 1:table1%nrows, i2 = 1:table2%nrows )
+      if ( key1(i1) == key2(i2) ) then
+        matches(i1, i2) = .true.
+      end if
+      !print *, 'i1: ', i1, ', i2: ', i2, 'key1(i1): ', key1(i1), 'key2(i2): ', key2(i2), ', matches: ', matches(i1, i2)
+    end do
+
+    end associate
+
+    call table3%init ( nrows    = count(matches), &
+                       ncols    = table1%ncols + table2%ncols, &
+                       colnames = [ table1%colnames, table2%colnames ] )
+    k = 0
+    do i1 = 1, table1%nrows
+      do i2 = 1, table2%nrows
+        if ( matches(i1, i2) ) then
+          k = k + 1
+          table3%cell(k, :) = [ table1%cell(i1, :), table2%cell(i2, :) ]
+        end if
+      end do
+    end do
+
+  end function
+
+  pure function left_join_pure ( table1, table2 ) result ( table3 )
+  ! Note.
+  ! Use left_join (impure) function instead
+  ! if table sizes are large and calculation is slow.
+
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3
+    logical                     :: matches(table1%nrows, table2%nrows) ! can be very large
+    logical                     :: found
+    integer i1, i2, j1, j2, k
+
+    ! Find key columns
+    j1 = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
+    j2 = findloc( adjustl(table2%colnames), table2%key, dim = 1 )
+
+    associate ( key1 => table1%cell(:, j1), &
+                key2 => table2%cell(:, j2) )
+
+    ! Find matching combinations
+    matches = .false.
+    do concurrent ( i1 = 1:table1%nrows, i2 = 1:table2%nrows )
+      if ( key1(i1) == key2(i2) ) then
+        matches(i1, i2) = .true.
+      end if
+    end do
+
+    end associate
+
+    call table3%init ( nrows    = count(matches) + table1%nrows, &
+                       ncols    = table1%ncols + table2%ncols,   &
+                       colnames = [ table1%colnames, table2%colnames ] )
+    k = 0
+    do i1 = 1, table1%nrows
+      found = .false.
+      do i2 = 1, table2%nrows
+        if ( matches(i1, i2) ) then
+          found = .true.
+          k = k + 1
+          table3%cell(k, :) = [ table1%cell(i1, :), table2%cell(i2, :) ]
+        end if
+      end do
+      if ( .not. found ) then
+        k = k + 1
+        table3%cell(k, 1:table1%ncols)  = table1%cell(i1, :)
+        table3%cell(k, table1%ncols+1:) = NA
+      end if
+    end do
+
+    table3%nrows = k
+    table3%cell  = table3%cell(1:k, :)
+
+  end function
+
+  pure function right_join_pure ( table1, table2 ) result ( table3 )
+  ! Note.
+  ! Use right_join (impure) function instead
+  ! if table sizes are large and calculation is slow.
+
+    class(table_ty), intent(in) :: table1
+    type(table_ty),  intent(in) :: table2
+    type(table_ty)              :: table3_
+    type(table_ty)              :: table3
+
+    table3 = left_join_pure ( table2, table1 )
+
+    table3_ = table3
+
+    table3%colnames = [ table1%colnames, table2%colnames ]
     table3%cell(:, 1:table1%ncols)  = table3_%cell(:, table2%ncols+1:)
     table3%cell(:, table1%ncols+1:) = table3_%cell(:, 1:table2%ncols)
 
@@ -311,8 +448,8 @@ contains
     type(table_ty),  intent(in) :: table2
     type(table_ty)              :: table3
 
-    call table3%init( nrows = table1%nrows + table2%nrows, &
-                      ncols = table1%ncols )
+    call table3%init ( nrows = table1%nrows + table2%nrows, &
+                       ncols = table1%ncols )
 
     table3%cell(1:table1%nrows,  :) = table1%cell
     table3%cell(table1%nrows+1:, :) = table2%cell
@@ -331,13 +468,13 @@ contains
     integer i, i1, i2, j_key, k
 
     ! Find key columns (shall be the same column index for both tables)
-    j_key = findloc( table1%colnames, table1%key, dim = 1 )
+    j_key = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
 
     associate ( key1 => table1%cell(:, j_key), &
                 key2 => table2%cell(:, j_key) )
 
-    call table3_%init( nrows = size(union ( key1, key2 )), &
-                       ncols = table1%ncols )
+    call table3_%init ( nrows = size(union ( key1, key2 )), &
+                        ncols = table1%ncols )
 
     table3_%cell(1:table1%nrows, :) = table1%cell
 
@@ -734,7 +871,7 @@ print *, 'intersect: n1 >= n2'
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
-    cvals = table%cell(:, findloc( table%colnames, col, dim = 1 ))
+    cvals = table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 ))
   end function
 
   pure function to_logical_colindex ( table, col ) result ( lvals )
@@ -752,7 +889,7 @@ print *, 'intersect: n1 >= n2'
     character(*),    intent(in) :: col
     logical                     :: lvals(table%nrows) 
     integer i, j
-    j = findloc( table%colnames, col, dim = 1 )
+    j = findloc( adjustl(table%colnames), col, dim = 1 )
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, j), * ) lvals(i)
     end do
@@ -773,7 +910,7 @@ print *, 'intersect: n1 >= n2'
     character(*),    intent(in) :: col
     integer                     :: ivals(table%nrows) 
     integer i, j
-    j = findloc( table%colnames, col, dim = 1 )
+    j = findloc( adjustl(table%colnames), col, dim = 1 )
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, j), * ) ivals(i)
     end do
@@ -794,7 +931,7 @@ print *, 'intersect: n1 >= n2'
     character(*),    intent(in) :: col
     real                        :: rvals(table%nrows) 
     integer i, j
-    j = findloc( table%colnames, col, dim = 1 )
+    j = findloc( adjustl(table%colnames), col, dim = 1 )
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, j), * ) rvals(i)
     end do
@@ -815,7 +952,7 @@ print *, 'intersect: n1 >= n2'
     class(table_ty), intent(inout) :: table
     character(*),    intent(in)    :: vals(table%nrows) 
     character(*),    intent(in)    :: col
-    table%cell(:, findloc( table%colnames, col, dim = 1 )) = vals
+    table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 )) = vals
   end subroutine
 
   pure subroutine from_logical_colindex ( table, vals, col )
@@ -833,7 +970,7 @@ print *, 'intersect: n1 >= n2'
     logical,         intent(in)    :: vals(table%nrows)
     character(*),    intent(in)    :: col
     integer i, j
-    j = findloc( table%colnames, col, dim = 1 )
+    j = findloc( adjustl(table%colnames), col, dim = 1 )
     do concurrent ( i = 1:table%nrows )
      write ( table%cell(i, j), * ) vals(i)
     end do
@@ -854,7 +991,7 @@ print *, 'intersect: n1 >= n2'
     integer,         intent(in)    :: vals(table%nrows)
     character(*),    intent(in)    :: col
     integer i, j
-    j = findloc( table%colnames, col, dim = 1 )
+    j = findloc( adjustl(table%colnames), col, dim = 1 )
     do concurrent ( i = 1:table%nrows )
      write ( table%cell(i, j), * ) vals(i)
     end do
@@ -875,7 +1012,7 @@ print *, 'intersect: n1 >= n2'
     real,            intent(in)    :: vals(table%nrows)
     character(*),    intent(in)    :: col
     integer i, j
-    j = findloc( table%colnames, col, dim = 1 )
+    j = findloc( adjustl(table%colnames), col, dim = 1 )
     do concurrent ( i = 1:table%nrows )
      write ( table%cell(i, j), * ) vals(i)
     end do
