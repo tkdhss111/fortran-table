@@ -713,16 +713,11 @@ contains
       end if
     end do
 
-    !do i = 1, n
-    !  print *, i, trim(set3(i)), duplicated(i)
-    !end do
-
     cup = pack( set3, .not. duplicated )
 
   end function
 
-  !pure function intersect ( set1, set2 ) result ( cap )
-  function intersect ( set1, set2 ) result ( cap )
+  pure function intersect ( set1, set2 ) result ( cap )
 
     character(LEN_C), intent(in)  :: set1(:)
     character(LEN_C), intent(in)  :: set2(:)
@@ -735,32 +730,20 @@ contains
     
     if ( n1 < n2 ) then ! set1 is smaller
 
-print *, 'intersect: n1 < n2'
-
       allocate ( duplicated(n1), source = .false. )
 
       do concurrent ( i1 = 1:n1 )
-      !do i1 = 1, n1
         do i2 = 1, n2
           if ( set1(i1) == set2(i2) ) then
             duplicated(i1) = .true.
-            !print *, 'intersect:', i1, trim(set1(i1)), duplicated(i1), i1, '/', n1
             exit
           end if
         end do
       end do
 
-      do i1 = 1, size(set1)
-        print *, 'intersect:', i1, trim(set1(i1)), duplicated(i1)
-      end do
-
-print *, 'intersect: S: pack'
       cap = pack( set1, duplicated )
-print *, 'intersect: E: pack'
 
     else ! set2 is smaller
-
-print *, 'intersect: n1 >= n2'
 
       allocate ( duplicated(n2), source = .false. )
 
@@ -771,10 +754,6 @@ print *, 'intersect: n1 >= n2'
             exit
           end if
         end do
-      end do
-
-      do i2 = 1, size(set2)
-        print *, 'intersect:', i2, trim(set2(i2)), duplicated(i2)
       end do
 
       cap = pack( set2, duplicated )
