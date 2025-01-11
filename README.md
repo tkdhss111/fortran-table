@@ -4,8 +4,8 @@ Fortran Functions for Table Manipulation
 
 - SQL-like table manipulation
 - All data are stored as character
-- Large size table handling in {inner, left, right} join
 - No database API is used
+- Can handle large size table in joins (-O2, -O3)
 
 ## Initialization
 
