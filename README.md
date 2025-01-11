@@ -4,7 +4,7 @@ Fortran Functions for Table Manipulation
 
 - SQL-like table manipulation
 - All data are stored as character
-- Large size table handling in {inner/left/right}join
+- Large size table handling in {inner, left, right} join
 - No database API is used
 
 ## Initialization
@@ -101,7 +101,7 @@ table1 = delete ( table, [ 3, 2 ] )
 table1 = delete ( table, [ .true., .false., .true. ] )
 ```
 
-## Join
+## Joins
 
 key in each table is used for matching
 
