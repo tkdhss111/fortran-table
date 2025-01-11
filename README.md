@@ -77,6 +77,30 @@ table1 = filter ( table, [ 3, 2 ] )
 table1 = filter ( table, [ .true., .false., .true. ] )
 ```
 
+## Delete
+
+```
+table1 = delete ( table, rows ) 
+```
+or
+```
+table1 = table%delete( rows ) 
+```
+
+**rows** shall be row names / indices / logical vector 
+
+```
+table1 = delete ( table, [ "row3", "row1" ] )
+```
+
+```
+table1 = delete ( table, [ 3, 2 ] )
+```
+
+```
+table1 = delete ( table, [ .true., .false., .true. ] )
+```
+
 ## Join
 
 key in each table is used for matching

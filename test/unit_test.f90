@@ -38,7 +38,7 @@ program unit_test_table_mo
   print *, '=========================================='
 
   print *, '------------------------------------------'
-  print *, 'Test 2-1: with column indeces'
+  print *, 'Test 2-1: with column indices'
   print *, '------------------------------------------'
 
   table1 = select ( table, [ 3, 2 ] ) 
@@ -74,7 +74,7 @@ program unit_test_table_mo
   print *, '=========================================='
 
   print *, '------------------------------------------'
-  print *, 'Test 3-1: with row indeces'
+  print *, 'Test 3-1: with row indices'
   print *, '------------------------------------------'
 
   table1 = filter ( table, [ 3, 2 ] )
@@ -106,7 +106,43 @@ program unit_test_table_mo
   call table1%print
 
   print *, '=========================================='
-  print *, 'Test 4: Inner Join'
+  print *, 'Test 4: Delete'
+  print *, '=========================================='
+
+  print *, '------------------------------------------'
+  print *, 'Test 4-1: with row indices'
+  print *, '------------------------------------------'
+
+  table1 = delete ( table, [ 3, 2 ] )
+
+  call table1%print
+
+  print *, '------------------------------------------'
+  print *, 'Test 4-2: with logical vector'
+  print *, '------------------------------------------'
+
+  table1 = delete ( table, [ .true., .false., .true. ] )
+
+  call table1%print
+
+  print *, '------------------------------------------'
+  print *, 'Test 4-3: with rownames'
+  print *, '------------------------------------------'
+
+  table1 = delete ( table, [ 'row3', 'row1' ] )
+
+  call table1%print
+
+  print *, '-----------------------------------------'
+  print *, 'Test 4-4: as type-bound procedure'
+  print *, '-----------------------------------------'
+
+  table1 = table%delete ( [ .true., .false., .true. ] )
+
+  call table1%print
+
+  print *, '=========================================='
+  print *, 'Test 5: Inner Join'
   print *, '=========================================='
 
   call table1%init ( nrows = 4, ncols = 3 )
@@ -123,7 +159,7 @@ program unit_test_table_mo
   table2%cell(3, :) = [ 't2_31',   'key5 ',   't2_33'   ]
 
   print *, '-----------------------------------------'
-  print *, 'Test 4-1: with function'
+  print *, 'Test 5-1: with function'
   print *, '-----------------------------------------'
 
   table3 = inner_join ( table1, table2 )
@@ -131,7 +167,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 4-2: as type-bound procedure'
+  print *, 'Test 5-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%inner_join ( table2 )
@@ -139,7 +175,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 4-3: with pure function (slow with large tables)'
+  print *, 'Test 5-3: with pure function (slow with large tables)'
   print *, '-----------------------------------------'
 
   table3 = inner_join_pure ( table1, table2 )
@@ -147,11 +183,11 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 5: Left Join'
+  print *, 'Test 6: Left Join'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 5-1: with function'
+  print *, 'Test 6-1: with function'
   print *, '-----------------------------------------'
 
   table3 = left_join ( table1, table2 )
@@ -159,7 +195,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 5-2: as type-bound procedure'
+  print *, 'Test 6-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%left_join ( table2 )
@@ -167,7 +203,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 5-3: with operator(*)'
+  print *, 'Test 6-3: with operator(*)'
   print *, '-----------------------------------------'
 
   table3 = table1 * table2
@@ -175,7 +211,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 5-4: with pure function (slow with large tables)'
+  print *, 'Test 6-4: with pure function (slow with large tables)'
   print *, '-----------------------------------------'
 
   table3 = left_join_pure ( table1, table2 )
@@ -183,11 +219,11 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 6: Right Join'
+  print *, 'Test 7: Right Join'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 6-1: with function'
+  print *, 'Test 7-1: with function'
   print *, '-----------------------------------------'
 
   table3 = right_join ( table1, table2 )
@@ -195,7 +231,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 6-2: as type-bound procedure'
+  print *, 'Test 7-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%right_join ( table2 )
@@ -203,7 +239,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 6-3: with pure function (slow with large tables)'
+  print *, 'Test 7-3: with pure function (slow with large tables)'
   print *, '-----------------------------------------'
 
   table3 = right_join_pure ( table1, table2 )
@@ -211,7 +247,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 7: Insert or Replace'
+  print *, 'Test 8: Insert or Replace'
   print *, '=========================================='
 
   ! key shall be unique for insert or replace operation
@@ -222,7 +258,7 @@ program unit_test_table_mo
   table1%cell(3, :) = [ 'key3 ',   't1_32',   't1_33'   ]
 
   print *, '-----------------------------------------'
-  print *, 'Test 7-1: with function'
+  print *, 'Test 8-1: with function'
   print *, '-----------------------------------------'
 
   table3 = insert_or_replace ( table1, table2 )
@@ -230,7 +266,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 7-2: as type-bound procedure'
+  print *, 'Test 8-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%insert_or_replace ( table2 )
@@ -238,7 +274,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 7-3: with operator(+)'
+  print *, 'Test 8-3: with operator(+)'
   print *, '-----------------------------------------'
 
   table3 = table1 + table2
@@ -246,17 +282,17 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 8: Append'
+  print *, 'Test 9: Append'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 8-1: with function'
+  print *, 'Test 9-1: with function'
   print *, '-----------------------------------------'
 
   table3 = append ( table1, table2 )
 
   print *, '-----------------------------------------'
-  print *, 'Test 8-2: as type-bound procedure'
+  print *, 'Test 9-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%append ( table2 )
@@ -264,25 +300,25 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 9: File I/O'
+  print *, 'Test 10: File I/O'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 9-1: Write CSV File'
+  print *, 'Test 10-1: Write CSV File'
   print *, '-----------------------------------------'
 
   call table1%write_csv ( file = 'table1.csv' )
   call table2%write_csv ( file = 'table2.csv' )
 
   print *, '-----------------------------------------'
-  print *, 'Test 9-2: Read CSV File'
+  print *, 'Test 10-2: Read CSV File'
   print *, '-----------------------------------------'
 
   call table3%read_csv ( file = 'table1.csv' )
   call table4%read_csv ( file = 'table2.csv' )
 
   print *, '=========================================='
-  print *, 'Test 10: Column Converter'
+  print *, 'Test 11: Column Converter'
   print *, '=========================================='
 
   call table%init (                        &
@@ -298,7 +334,7 @@ program unit_test_table_mo
   call table%print
 
   print *, '---------------------------------------------'
-  print *, 'Test 10-1: Column (character) to another type'
+  print *, 'Test 11-1: Column (character) to another type'
   print *, '---------------------------------------------'
 
   cvals = table%to_character ( col = 1 )
@@ -326,7 +362,7 @@ program unit_test_table_mo
   print *, rvals
 
   print *, '---------------------------------------------'
-  print *, 'Test 10-2: Another type to column (character)'
+  print *, 'Test 11-2: Another type to column (character)'
   print *, '---------------------------------------------'
 
   table%cell = '' ! clear cells
@@ -386,26 +422,26 @@ program unit_test_table_mo
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-3: Integer quick sort with indeces'
+  print *, 'Test A-3: Integer sort with indices'
   print *, '-----------------------------------------'
 
   jj = [10, 3, 1, -1, 0]
   ii  = [( i, i = 1, size(jj) )]
 
-  call quicksort_integer ( jj, ii, 1, size(ii) )
+  call sort_integer ( jj, ii, 1, size(ii) )
 
   do i = 1, size(jj)
     print *, 'Rank:', i, ', Value: ', jj(i)
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-4: String quick sort with indeces'
+  print *, 'Test A-4: String sort with indices'
   print *, '-----------------------------------------'
 
   str = [ 'd12', 'c44', 'a31', 'b29' ]
   ii  = [( i, i = 1, size(str) )]
 
-  call quicksort_string ( str, ii )
+  call sort_character ( str, ii )
 
   do i = 1, size(str)
     print *, 'Rank:', i, ', Value: ', trim( str(ii(i)) )

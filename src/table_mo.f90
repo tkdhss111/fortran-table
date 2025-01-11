@@ -5,12 +5,12 @@ module table_mo
   private
   public :: LEN_C
   public :: table_ty
-  public :: select, filter
+  public :: select, filter, delete
   public :: inner_join, left_join, right_join
   public :: inner_join_pure, left_join_pure, right_join_pure
   public :: insert_or_replace, append
   public :: union, intersect
-  public :: quicksort_integer, quicksort_string
+  public :: sort_integer, sort_character
 
   integer,          parameter :: LEN_C = 24   ! Character length of each cell
   character(LEN_C), parameter :: NA    = 'NA' ! N/A data notation
@@ -30,6 +30,8 @@ module table_mo
     generic   :: select => select_integer, select_logical, select_character
     procedure :: filter_integer, filter_logical, filter_character
     generic   :: filter => filter_integer, filter_logical, filter_character
+    procedure :: delete_integer, delete_logical, delete_character
+    generic   :: delete => delete_integer, delete_logical, delete_character
     procedure :: to_character_colindex, to_logical_colindex, to_integer_colindex, to_real_colindex
     procedure :: to_character_colname,  to_logical_colname,  to_integer_colname,  to_real_colname
     generic   :: to_character   => to_character_colindex,    to_character_colname 
@@ -57,6 +59,10 @@ module table_mo
 
   interface filter
     procedure :: filter_integer, filter_logical, filter_character
+  end interface
+
+  interface delete
+    procedure :: delete_integer, delete_logical, delete_character
   end interface
 
 contains
@@ -209,6 +215,63 @@ contains
     end do
 
     table_ = filter_integer ( table, ii )
+
+  end function
+
+  !======================================================
+  ! Delete
+  !
+
+  pure function delete_integer ( table, rows ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    integer,         intent(in) :: rows(:)
+    type(table_ty)              :: table_
+    integer, allocatable        :: ii(:)
+    logical, allocatable        :: ll(:)
+    integer i, j
+
+    ii = [( i,      i = 1, table%nrows )]
+    ll = [( .true., j = 1, table%nrows )]
+
+    do i = 1, size(rows)
+      j = findloc( ii, rows(i), dim = 1 )
+      if ( j /= 0 ) then
+        ll(j) = .false.
+      end if
+    end do
+
+    table_ = filter_logical ( table, ll )
+
+  end function
+
+  pure function delete_logical ( table, rows ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    logical,         intent(in) :: rows(:)
+    type(table_ty)              :: table_
+    integer, allocatable        :: ii(:)
+    integer i
+
+    ii = [( i, i = 1, size(rows) )]
+
+    table_ = delete_integer ( table, pack( ii, rows ) )
+
+  end function
+
+  pure function delete_character ( table, rows ) result ( table_ )
+
+    class(table_ty), intent(in) :: table
+    character(*),    intent(in) :: rows(:)
+    type(table_ty)              :: table_
+    integer                     :: ii(size(rows))
+    integer i
+
+    do concurrent ( i = 1:size(rows) )
+      ii(i) = findloc( adjustl(table%rownames), rows(i), dim = 1 )
+    end do
+
+    table_ = delete_integer ( table, ii )
 
   end function
 
@@ -506,7 +569,7 @@ contains
     key3 = table3_%cell(:, j_key)
     ii   = [( i, i = 1, table3%nrows )]
 
-    call quicksort_string ( key3, ii )
+    call sort_character ( key3, ii )
 
     do concurrent ( i = 1:table3%nrows )
       table3%cell(i, :) = table3_%cell(ii(i), :)
@@ -762,17 +825,18 @@ contains
 
   end function
 
-  pure subroutine quicksort_string ( keys, ii )
+  pure subroutine sort_character ( keys, ii )
+    ! key shall have numeric value in every string
 
-    character(*), intent(in)    :: keys(:) ! Input array
-    integer,      intent(inout) :: ii(:)   ! Array of indices
+    character(*), intent(in)    :: keys(:) ! The array to be sorted
+    integer,      intent(inout) :: ii(:)   ! The indices to track sorted order
     character(:), allocatable   :: str
     integer i, p, i_a, a(size(keys))
 
     do concurrent ( i = 1:size(keys) )
       str = ''
       do p = 1, len_trim(keys(i))
-        i_a = iachar(keys(i)(p:p))
+        i_a = iachar(keys(i)(p:p)) ! extracts character number from string
         if ( 48 <= i_a .and. i_a <= 57 ) then
           str = str//keys(i)(p:p)
         end if
@@ -781,13 +845,13 @@ contains
       read ( str, * ) a(i)
     end do
 
-    call quicksort_integer ( a, ii, 1, size(a) )
+    call sort_integer ( a, ii, 1, size(a) )
 
   end subroutine
 
-  pure recursive subroutine quicksort_integer ( a, ii, low, high )
-    integer, intent(inout) :: a(:)      ! The array to be sorted
-    integer, intent(inout) :: ii(:)     ! The indices to track sorted order
+  pure recursive subroutine sort_integer ( a, ii, low, high )
+    integer, intent(inout) :: a(:)  ! The array to be sorted
+    integer, intent(inout) :: ii(:) ! The indices to track sorted order
     integer, intent(in)    :: low, high
     integer i, pivot
     if ( low < high ) then
@@ -796,9 +860,9 @@ contains
       do concurrent ( i = 1:2 )
         select case ( i )
         case ( 1 )
-          call quicksort_integer ( a, ii, low, pivot - 1 )
+          call sort_integer ( a, ii, low, pivot - 1 )
         case ( 2 )
-          call quicksort_integer ( a, ii, pivot + 1, high )
+          call sort_integer ( a, ii, pivot + 1, high )
         end select
       end do
     end if
