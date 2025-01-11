@@ -327,8 +327,8 @@ program unit_test_table_mo
     rownames = [ 'row1', 'row2', 'row3' ], &
     colnames = [ 'col1', 'col2', 'col3', 'col4' ] )
 
-  table%cell(1, :) = [ 'str1', 'T   ', '11  ', '1.2 ' ]
-  table%cell(2, :) = [ 'str2', 'F   ', '21  ', '2.2 ' ]
+  table%cell(1, :) = [ 'str1', 'T   ', 'NA  ', '1.2 ' ]
+  table%cell(2, :) = [ 'NA  ', 'F   ', '21  ', 'NA  ' ]
   table%cell(3, :) = [ 'str3', 'T   ', '31  ', '3.2 ' ]
 
   call table%print
@@ -360,6 +360,12 @@ program unit_test_table_mo
 
   rvals = table%to_real ( col = 'col4' )
   print *, rvals
+
+  ! Error check : logical column has NA's
+  !table%cell(2, :) = [ 'str2', 'NA  ', '21  ', '2.2 ' ]
+  !lvals = table%to_logical ( col = 2 )
+  !lvals = table%to_logical ( col = 'col2' )
+  !print *, lvals
 
   print *, '---------------------------------------------'
   print *, 'Test 11-2: Another type to column (character)'

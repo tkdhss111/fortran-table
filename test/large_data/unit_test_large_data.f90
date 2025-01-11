@@ -34,6 +34,8 @@ program unit_test_table_mo
 
   call tm%toc ()
 
+  call table%write_csv ( file = "inner_join_large_data.csv" )
+
 !  print *, '------------------------------------------'
 !  print *, 'Test: Inner Join (pure function) ... slow (-O3: 29sec)' 
 !  print *, '------------------------------------------'
@@ -58,6 +60,8 @@ program unit_test_table_mo
 
   call tm%toc ()
 
+  call table%write_csv ( file = "left_join_large_data.csv" )
+
 !  print *, '------------------------------------------'
 !  print *, 'Test: Left Join (pure function) ... slow (-O3: 28sec)' 
 !  print *, '------------------------------------------'
@@ -81,6 +85,8 @@ program unit_test_table_mo
   call table%print
 
   call tm%toc ()
+
+  call table%write_csv ( file = "right_join_large_data.csv" )
 
 !  print *, '------------------------------------------'
 !  print *, 'Test: Right Join (pure function) ... slow (-O3: 44sec)' 

@@ -12,8 +12,10 @@ module table_mo
   public :: union, intersect
   public :: sort_integer, sort_character
 
-  integer,          parameter :: LEN_C = 24   ! Character length of each cell
-  character(LEN_C), parameter :: NA    = 'NA' ! N/A data notation
+  integer,          parameter :: LEN_C = 24     ! Character length of each cell
+  character(LEN_C), parameter :: cNA   = 'NA'   ! N/A data notation for character
+  integer,          parameter :: iNA   = -999   ! N/A data notation for integer
+  real,             parameter :: rNA   = -999.0 ! N/A data notation for integer
 
   type table_ty
 
@@ -350,7 +352,7 @@ contains
       end do
       if ( .not. found ) then
         nrows = nrows + 1
-        write ( u ) table1%cell(i1, :), repeat( NA, table2%ncols )
+        write ( u ) table1%cell(i1, :), repeat( cNA, table2%ncols )
       end if
     end do
 
@@ -476,7 +478,7 @@ contains
       if ( .not. found ) then
         k = k + 1
         table3%cell(k, 1:table1%ncols)  = table1%cell(i1, :)
-        table3%cell(k, table1%ncols+1:) = NA
+        table3%cell(k, table1%ncols+1:) = cNA
       end if
     end do
 
@@ -903,80 +905,134 @@ contains
   !----------------------------------------------
   ! Column (character) to another type'
   !
-  pure function to_character_colindex ( table, col ) result ( cvals )
+  function to_character_colindex ( table, col ) result ( cvals )
     class(table_ty), intent(in) :: table
     integer,         intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
     cvals = table%cell(:, col)
   end function
 
-  pure function to_character_colname ( table, col ) result ( cvals )
+  function to_character_colname ( table, col ) result ( cvals )
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
     cvals = table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 ))
   end function
 
-  pure function to_logical_colindex ( table, col ) result ( lvals )
+  function to_logical_colindex ( table, col ) result ( lvals )
     class(table_ty), intent(in) :: table
     integer,         intent(in) :: col
     logical                     :: lvals(table%nrows) 
     integer i
+    if ( any( table%cell(:, col) == 'NA' ) ) then
+      print *, '*** Error: logical column shall not have NAs'
+      print *, 'Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
+      stop 1
+    end if
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, col), * ) lvals(i)
     end do
   end function
 
-  pure function to_logical_colname ( table, col ) result ( lvals )
+  function to_logical_colname ( table, col ) result ( lvals )
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
     logical                     :: lvals(table%nrows) 
     integer i, j
     j = findloc( adjustl(table%colnames), col, dim = 1 )
+    if ( any( table%cell(:, j) == 'NA' ) ) then
+      print *, '*** Error: logical column shall not have NAs'
+      print *, 'Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
+      stop 1
+    end if
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, j), * ) lvals(i)
     end do
   end function
 
-  pure function to_integer_colindex ( table, col ) result ( ivals )
-    class(table_ty), intent(in) :: table
-    integer,         intent(in) :: col
-    integer                     :: ivals(table%nrows) 
+  function to_integer_colindex ( table, col ) result ( ivals )
+    class(table_ty), intent(in)   :: table
+    integer,         intent(in)   :: col
+    character(LEN_C), allocatable :: cell(:, :)
+    integer                       :: ivals(table%nrows) 
     integer i
+    cell = table%cell
+    if ( any( cell(:, col) == 'NA' ) ) then
+      print *, '*** Warning: integer column has NAs'
+      print *, 'NAs are replaced by iNA(e.g., -999)'
+      do concurrent ( i = 1:table%nrows )
+        if ( cell(i, col) == 'NA' ) then
+          write ( cell(i, col), * ) iNA
+        end if
+      end do
+    end if
     do concurrent ( i = 1:table%nrows )
-      read ( table%cell(i, col), * ) ivals(i)
+      read ( cell(i, col), * ) ivals(i)
     end do
   end function
 
-  pure function to_integer_colname ( table, col ) result ( ivals )
-    class(table_ty), intent(in) :: table
-    character(*),    intent(in) :: col
-    integer                     :: ivals(table%nrows) 
+  function to_integer_colname ( table, col ) result ( ivals )
+    class(table_ty), intent(in)   :: table
+    character(*),    intent(in)   :: col
+    character(LEN_C), allocatable :: cell(:, :)
+    integer                       :: ivals(table%nrows) 
     integer i, j
+    cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
+    if ( any( cell(:, j) == 'NA' ) ) then
+      print *, '*** Warning: integer column has NAs'
+      print *, 'NAs are replaced by iNA(e.g., -999)'
+      do concurrent ( i = 1:table%nrows )
+        if ( cell(i, j) == 'NA' ) then
+          write ( cell(i, j), * ) iNA
+        end if
+      end do
+    end if
     do concurrent ( i = 1:table%nrows )
-      read ( table%cell(i, j), * ) ivals(i)
+      read ( cell(i, j), * ) ivals(i)
     end do
   end function
 
-  pure function to_real_colindex ( table, col ) result ( rvals )
-    class(table_ty), intent(in) :: table
-    integer,         intent(in) :: col
-    real                        :: rvals(table%nrows) 
+  function to_real_colindex ( table, col ) result ( rvals )
+    class(table_ty), intent(in)   :: table
+    integer,         intent(in)   :: col
+    character(LEN_C), allocatable :: cell(:, :)
+    real                          :: rvals(table%nrows) 
     integer i
+    cell = table%cell
+    if ( any( cell(:, col) == 'NA' ) ) then
+      print *, '*** Warning: real column has NAs'
+      print *, 'NAs are replaced by rNA(e.g., -999.0)'
+      do concurrent ( i = 1:table%nrows )
+        if ( cell(i, col) == 'NA' ) then
+          write ( cell(i, col), * ) rNA
+        end if
+      end do
+    end if
     do concurrent ( i = 1:table%nrows )
-      read ( table%cell(i, col), * ) rvals(i)
+      read ( cell(i, col), * ) rvals(i)
     end do
   end function
 
-  pure function to_real_colname ( table, col ) result ( rvals )
-    class(table_ty), intent(in) :: table
-    character(*),    intent(in) :: col
-    real                        :: rvals(table%nrows) 
+  function to_real_colname ( table, col ) result ( rvals )
+    class(table_ty), intent(in)   :: table
+    character(*),    intent(in)   :: col
+    character(LEN_C), allocatable :: cell(:, :)
+    real                          :: rvals(table%nrows) 
     integer i, j
+    cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
+    if ( any( cell(:, j) == 'NA' ) ) then
+      print *, '*** Warning: real column has NAs'
+      print *, 'NAs are replaced by rNA(e.g., -999.0)'
+      do concurrent ( i = 1:table%nrows )
+        if ( cell(i, j) == 'NA' ) then
+          write ( cell(i, j), * ) rNA
+        end if
+      end do
+    end if
     do concurrent ( i = 1:table%nrows )
-      read ( table%cell(i, j), * ) rvals(i)
+      read ( cell(i, j), * ) rvals(i)
     end do
   end function
 
@@ -984,7 +1040,7 @@ contains
   ! Another type to column (character)
   !
 
-  pure subroutine from_character_colindex ( table, vals, col )
+  subroutine from_character_colindex ( table, vals, col )
     class(table_ty), intent(inout) :: table
     character(*),    intent(in)    :: vals(table%nrows) 
     integer,         intent(in)    :: col
