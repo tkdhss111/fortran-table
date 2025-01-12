@@ -402,7 +402,14 @@ program unit_test_table_mo
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test A-1: Union of 2 sets'
+  print *, 'Test A-1: Get index of row / col'
+  print *, '-----------------------------------------'
+
+  print *, 'Index of row:', table%index_row ( row = 'row2' )
+  print *, 'Index of col:', table%index_col ( col = 'col3' )
+
+  print *, '-----------------------------------------'
+  print *, 'Test A-2: Union of 2 sets'
   print *, '-----------------------------------------'
 
   set1 = ['key1', 'key2', 'key3']
@@ -415,7 +422,7 @@ program unit_test_table_mo
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-2: Intersect of 2 sets'
+  print *, 'Test A-3: Intersect of 2 sets'
   print *, '-----------------------------------------'
 
   set1 = ['key1', 'key2', 'key3']
@@ -428,7 +435,7 @@ program unit_test_table_mo
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-3: Integer sort with indices'
+  print *, 'Test A-4: Integer sort with indices'
   print *, '-----------------------------------------'
 
   jj = [10, 3, 1, -1, 0]
@@ -441,7 +448,7 @@ program unit_test_table_mo
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-4: String sort with indices'
+  print *, 'Test A-5: String sort with indices'
   print *, '-----------------------------------------'
 
   str = [ 'd12', 'c44', 'a31', 'b29' ]
