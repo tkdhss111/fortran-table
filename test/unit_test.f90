@@ -142,7 +142,59 @@ program unit_test_table_mo
   call table1%print
 
   print *, '=========================================='
-  print *, 'Test 5: Inner Join'
+  print *, 'Test 5: Insert Column'
+  print *, '=========================================='
+
+  print *, '------------------------------------------'
+  print *, 'Test 5-1: with no option (default)'
+  print *, '------------------------------------------'
+
+  lvals = [( .true., i = 1, table%nrows )]
+  table1 = table%insert_col ( x = lvals )
+  call table1%print
+
+  ivals = [( i*2, i = 1, table%nrows )]
+  table1 = table%insert_col ( x = ivals )
+  call table1%print
+
+  rvals = [( real(i*2), i = 1, table%nrows )]
+  table1 = table%insert_col ( x = rvals )
+  call table1%print
+
+  cvals = [( 'char', i = 1, table%nrows )]
+  table1 = table%insert_col ( x = cvals )
+  call table1%print
+
+  print *, '------------------------------------------'
+  print *, 'Test 5-2: option with col index'
+  print *, '------------------------------------------'
+
+  cvals = [( 'char', i = 1, table%nrows )]
+  table1 = table%insert_col ( x = cvals, before = 1 )
+  call table1%print
+
+  cvals = [( 'char', i = 1, table%nrows )]
+  table1 = table%insert_col ( x = cvals, before = 3 )
+  call table1%print
+
+  print *, '------------------------------------------'
+  print *, 'Test 5-3: option with col name'
+  print *, '------------------------------------------'
+
+  cvals = [( 'char', i = 1, table%nrows )]
+  table1 = table%insert_col ( x = cvals, before = 'col2' )
+  call table1%print
+
+  print *, '------------------------------------------'
+  print *, 'Test 5-3: option with col name'
+  print *, '------------------------------------------'
+
+  cvals = [( 'char', i = 1, table%nrows )]
+  table1 = table%insert_col ( x = cvals, before = 'col3', colname = 'this_col' )
+  call table1%print
+
+  print *, '=========================================='
+  print *, 'Test SQL1: Inner Join'
   print *, '=========================================='
 
   call table1%init ( nrows = 4, ncols = 3 )
@@ -159,7 +211,7 @@ program unit_test_table_mo
   table2%cell(3, :) = [ 't2_31',   'key5 ',   't2_33'   ]
 
   print *, '-----------------------------------------'
-  print *, 'Test 5-1: with function'
+  print *, 'Test SQL1-1: with function'
   print *, '-----------------------------------------'
 
   table3 = inner_join ( table1, table2 )
@@ -167,7 +219,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 5-2: as type-bound procedure'
+  print *, 'Test SQL1-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%inner_join ( table2 )
@@ -175,7 +227,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 5-3: with pure function (slow with large tables)'
+  print *, 'Test SQL1-3: with pure function (slow with large tables)'
   print *, '-----------------------------------------'
 
   table3 = inner_join_pure ( table1, table2 )
@@ -183,11 +235,11 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 6: Left Join'
+  print *, 'Test SQL2: Left Join'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 6-1: with function'
+  print *, 'Test SQL2-1: with function'
   print *, '-----------------------------------------'
 
   table3 = left_join ( table1, table2 )
@@ -195,7 +247,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 6-2: as type-bound procedure'
+  print *, 'Test SQL2-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%left_join ( table2 )
@@ -203,7 +255,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 6-3: with operator(*)'
+  print *, 'Test SQL2-3: with operator(*)'
   print *, '-----------------------------------------'
 
   table3 = table1 * table2
@@ -211,7 +263,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 6-4: with pure function (slow with large tables)'
+  print *, 'Test SQL2-4: with pure function (slow with large tables)'
   print *, '-----------------------------------------'
 
   table3 = left_join_pure ( table1, table2 )
@@ -219,11 +271,11 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 7: Right Join'
+  print *, 'Test SQL3: Right Join'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 7-1: with function'
+  print *, 'Test SQL3-1: with function'
   print *, '-----------------------------------------'
 
   table3 = right_join ( table1, table2 )
@@ -231,7 +283,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 7-2: as type-bound procedure'
+  print *, 'Test SQL3-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%right_join ( table2 )
@@ -239,7 +291,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 7-3: with pure function (slow with large tables)'
+  print *, 'Test SQL3-3: with pure function (slow with large tables)'
   print *, '-----------------------------------------'
 
   table3 = right_join_pure ( table1, table2 )
@@ -247,7 +299,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 8: Insert or Replace'
+  print *, 'Test SQL4: Insert or Replace'
   print *, '=========================================='
 
   ! key shall be unique for insert or replace operation
@@ -258,7 +310,7 @@ program unit_test_table_mo
   table1%cell(3, :) = [ 'key3 ',   't1_32',   't1_33'   ]
 
   print *, '-----------------------------------------'
-  print *, 'Test 8-1: with function'
+  print *, 'Test SQL4-1: with function'
   print *, '-----------------------------------------'
 
   table3 = insert_or_replace ( table1, table2 )
@@ -266,7 +318,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 8-2: as type-bound procedure'
+  print *, 'Test SQL4-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%insert_or_replace ( table2 )
@@ -274,7 +326,7 @@ program unit_test_table_mo
   call table3%print
 
   print *, '-----------------------------------------'
-  print *, 'Test 8-3: with operator(+)'
+  print *, 'Test SQL4-3: with operator(+)'
   print *, '-----------------------------------------'
 
   table3 = table1 + table2
@@ -282,17 +334,17 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 9: Append'
+  print *, 'Test SQL5: Append'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 9-1: with function'
+  print *, 'Test SQL5-1: with function'
   print *, '-----------------------------------------'
 
   table3 = append ( table1, table2 )
 
   print *, '-----------------------------------------'
-  print *, 'Test 9-2: as type-bound procedure'
+  print *, 'Test SQL5-2: as type-bound procedure'
   print *, '-----------------------------------------'
 
   table3 = table1%append ( table2 )
@@ -300,25 +352,25 @@ program unit_test_table_mo
   call table3%print
 
   print *, '=========================================='
-  print *, 'Test 10: File I/O'
+  print *, 'Test A: File I/O'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test 10-1: Write CSV File'
+  print *, 'Test A-1: Write CSV File'
   print *, '-----------------------------------------'
 
   call table1%write_csv ( file = 'table1.csv' )
   call table2%write_csv ( file = 'table2.csv' )
 
   print *, '-----------------------------------------'
-  print *, 'Test 10-2: Read CSV File'
+  print *, 'Test A-2: Read CSV File'
   print *, '-----------------------------------------'
 
   call table3%read_csv ( file = 'table1.csv' )
   call table4%read_csv ( file = 'table2.csv' )
 
   print *, '=========================================='
-  print *, 'Test 11: Column Converter'
+  print *, 'Test B: Column Converter'
   print *, '=========================================='
 
   call table%init (                        &
@@ -334,7 +386,7 @@ program unit_test_table_mo
   call table%print
 
   print *, '---------------------------------------------'
-  print *, 'Test 11-1: Column (character) to another type'
+  print *, 'Test B-1: Column (character) to another type'
   print *, '---------------------------------------------'
 
   cvals = table%to_character ( col = 1 )
@@ -368,7 +420,7 @@ program unit_test_table_mo
   !print *, lvals
 
   print *, '---------------------------------------------'
-  print *, 'Test 11-2: Another type to column (character)'
+  print *, 'Test B-2: Another type to column (character)'
   print *, '---------------------------------------------'
 
   table%cell = '' ! clear cells
@@ -398,18 +450,18 @@ program unit_test_table_mo
   print *, table%cell(:, 4)
 
   print *, '=========================================='
-  print *, 'Test A: Utility Functions'
+  print *, 'Test C: Utility Functions'
   print *, '=========================================='
 
   print *, '-----------------------------------------'
-  print *, 'Test A-1: Get index of row / col'
+  print *, 'Test C-1: Get index of row / col'
   print *, '-----------------------------------------'
 
   print *, 'Index of row:', table%index_row ( row = 'row2' )
   print *, 'Index of col:', table%index_col ( col = 'col3' )
 
   print *, '-----------------------------------------'
-  print *, 'Test A-2: Union of 2 sets'
+  print *, 'Test C-2: Union of 2 sets'
   print *, '-----------------------------------------'
 
   set1 = ['key1', 'key2', 'key3']
@@ -422,7 +474,7 @@ program unit_test_table_mo
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-3: Intersect of 2 sets'
+  print *, 'Test C-3: Intersect of 2 sets'
   print *, '-----------------------------------------'
 
   set1 = ['key1', 'key2', 'key3']
@@ -435,7 +487,7 @@ program unit_test_table_mo
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-4: Integer sort with indices'
+  print *, 'Test C-4: Integer sort with indices'
   print *, '-----------------------------------------'
 
   jj = [10, 3, 1, -1, 0]
@@ -448,7 +500,7 @@ program unit_test_table_mo
   end do
 
   print *, '-----------------------------------------'
-  print *, 'Test A-5: String sort with indices'
+  print *, 'Test C-5: String sort with indices'
   print *, '-----------------------------------------'
 
   str = [ 'd12', 'c44', 'a31', 'b29' ]

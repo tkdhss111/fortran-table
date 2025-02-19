@@ -101,6 +101,18 @@ table1 = delete ( table, [ 3, 2 ] )
 table1 = delete ( table, [ .true., .false., .true. ] )
 ```
 
+## Insert Column
+
+```
+table1 = table%insert_col ( x, before, colname ) 
+```
+
+**x** shall be character / logical / integer / real vector for new column
+
+**before**(optional) shall be character / integer for column position to insert before
+
+**colname**(optional) shall be character for new column name
+
 ## Joins
 
 key in each table is used for matching

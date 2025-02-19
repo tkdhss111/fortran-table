@@ -6,6 +6,7 @@ module table_mo
   public :: LEN_C
   public :: table_ty
   public :: select, filter, delete
+  public :: insert_col
   public :: inner_join, left_join, right_join
   public :: inner_join_pure, left_join_pure, right_join_pure
   public :: insert_or_replace, append
@@ -34,6 +35,7 @@ module table_mo
     generic   :: filter => filter_integer, filter_logical, filter_character
     procedure :: delete_integer, delete_logical, delete_character
     generic   :: delete => delete_integer, delete_logical, delete_character
+    procedure :: insert_col
     procedure :: to_character_colindex, to_logical_colindex, to_integer_colindex, to_real_colindex
     procedure :: to_character_colname,  to_logical_colname,  to_integer_colname,  to_real_colname
     generic   :: to_character   => to_character_colindex,    to_character_colname 
@@ -274,6 +276,84 @@ contains
     end do
 
     table_ = delete_integer ( table, ii )
+
+  end function
+
+  !======================================================
+  ! Insert Column
+  !
+
+  function insert_col ( table, x, colname, before ) result ( table_ )
+
+    class(table_ty),        intent(in) :: table
+    class(*),               intent(in) :: x(table%nrows)
+    class(*),     optional, intent(in) :: before
+    character(*), optional, intent(in) :: colname
+    character(LEN_C)                   :: colname_
+    character(LEN_C)                   :: c(table%nrows)
+    integer                            :: before_
+    type(table_ty)                     :: table_
+    integer i
+
+    if ( present( colname ) ) then
+      colname_ = colname
+    else
+      colname_ = 'new'
+    end if
+
+    if ( present( before ) ) then
+      select type ( before )
+        type is ( character(*) )
+          before_ = findloc( table%colnames, before, dim = 1 )
+        type is ( integer )
+          before_ = before
+      end select
+    else
+      before_ = table%ncols + 1
+    end if
+
+    call table_%init (            &
+      nrows    = table%nrows,     &
+      ncols    = table%ncols + 1, &
+      rownames = table%rownames,  &
+      name     = table%name,      &
+      file     = table%file )
+
+    select type ( x )
+      type is ( character(*) )
+        c = x
+      type is ( logical )
+        do concurrent ( i = 1:table%nrows )
+          write ( c(i), '(l)' ) x(i)
+        end do
+      type is ( integer )
+        do concurrent ( i = 1:table%nrows )
+          write ( c(i), '(i0)' ) x(i)
+        end do
+      type is ( real )
+        do concurrent ( i = 1:table%nrows )
+          write ( c(i), '(g0)' ) x(i)
+        end do
+    end select
+
+    if ( before_ == 1 ) then
+      table_%cell(:, 1) = c
+      table_%cell(:, 2:) = table%cell
+      table_%colnames(1) = colname_
+      table_%colnames(2:) = table%colnames
+    else if ( before_ == table%ncols + 1 ) then
+      table_%cell(:, 1:table%ncols) = table%cell
+      table_%cell(:, table_%ncols) = c
+      table_%colnames(1:table%ncols) = table%colnames
+      table_%colnames(table%ncols + 1) = colname_
+    else
+      table_%cell(:, 1:before_ - 1) = table%cell(:, 1:before_ - 1)
+      table_%cell(:, before_) = c
+      table_%cell(:, before_ + 1:) = table%cell(:, before_:)
+      table_%colnames(1:before_ - 1) = table%colnames(1:before_ - 1)
+      table_%colnames(before_) = colname_
+      table_%colnames(before_ + 1:) = table%colnames(before_:)
+    end if
 
   end function
 
