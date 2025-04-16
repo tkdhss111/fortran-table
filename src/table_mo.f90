@@ -12,6 +12,7 @@ module table_mo
   public :: insert_or_replace, append
   public :: union, intersect
   public :: sort_integer, sort_character
+  public :: get_cells_from_csvline
 
   integer,          parameter :: LEN_C = 24     ! Character length of each cell
   character(LEN_C), parameter :: cNA   = 'NA'   ! N/A data notation for character
