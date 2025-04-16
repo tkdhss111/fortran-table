@@ -785,6 +785,8 @@ contains
       cells(i + 1) = csvline(p(i) + 1:p(i + 1) - 1)
     end do
 
+    cells = adjustl(cells)
+
   end function
 
   subroutine print_table ( this, n )
@@ -1000,14 +1002,14 @@ contains
     class(table_ty), intent(in) :: table
     integer,         intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
-    cvals = adjustl(table%cell(:, col))
+    cvals = table%cell(:, col)
   end function
 
   function to_character_colname ( table, col ) result ( cvals )
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
-    cvals = adjustl(table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 )))
+    cvals = table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 ))
   end function
 
   function to_logical_colindex ( table, col ) result ( lvals )
