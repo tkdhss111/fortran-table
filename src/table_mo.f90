@@ -1000,14 +1000,14 @@ contains
     class(table_ty), intent(in) :: table
     integer,         intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
-    cvals = table%cell(:, col)
+    cvals = adjustl(table%cell(:, col))
   end function
 
   function to_character_colname ( table, col ) result ( cvals )
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
-    cvals = table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 ))
+    cvals = adjustl(table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 )))
   end function
 
   function to_logical_colindex ( table, col ) result ( lvals )
