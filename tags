@@ -134,7 +134,8 @@ ndays_mon	test/large_data/dt_mo.f90	/^  pure elemental integer function ndays_mo
 nrows	src/table_devel_class_x_mo.f90	/^    integer                       :: nrows,/;"	k	type:table_ty
 nrows	src/table_mo.f90	/^    integer                       :: nrows,/;"	k	type:table_ty
 partition	src/table_devel_class_x_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer
-partition	src/table_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer
+partition	src/table_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer4
+partition	src/table_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer8
 plus_days	test/large_data/dt_mo.f90	/^  pure elemental function plus_days /;"	f
 plus_dt	test/large_data/dt_mo.f90	/^  pure elemental function plus_dt /;"	f
 plus_hrs	test/large_data/dt_mo.f90	/^  pure elemental function plus_hrs /;"	f
@@ -175,7 +176,8 @@ set_now	test/large_data/dt_mo.f90	/^  type(dt_ty) function set_now /;"	f
 sort_character	src/table_devel_class_x_mo.f90	/^  pure subroutine sort_character /;"	s
 sort_character	src/table_mo.f90	/^  pure subroutine sort_character /;"	s
 sort_integer	src/table_devel_class_x_mo.f90	/^  pure recursive subroutine sort_integer /;"	s
-sort_integer	src/table_mo.f90	/^  pure recursive subroutine sort_integer /;"	s
+sort_integer4	src/table_mo.f90	/^  pure recursive subroutine sort_integer4 /;"	s
+sort_integer8	src/table_mo.f90	/^  pure recursive subroutine sort_integer8 /;"	s
 start	test/large_data/dt_mo.f90	/^    integer :: start /;"	k	type:tm_ty
 str	test/unit_test.f90	/^  character(LEN_C), allocatable :: set1(:), set2(:), set3(:), str(/;"	v	program:unit_test_table_mo
 strftime	test/large_data/dt_mo.f90	/^  pure elemental function strftime /;"	f

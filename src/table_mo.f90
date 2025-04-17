@@ -70,6 +70,10 @@ module table_mo
     procedure :: delete_integer, delete_logical, delete_character
   end interface
 
+  interface sort_integer
+    procedure :: sort_integer4, sort_integer8 
+  end interface
+
 contains
 
   pure subroutine init_table ( this, nrows, ncols, cell, rownames, colnames, name, key, file )
@@ -399,9 +403,12 @@ contains
 
     rewind ( u )
 
-    call table3%init( nrows = nrows, &
-                      ncols = table1%ncols + table2%ncols, &
-                      colnames = [ table1%colnames, table2%colnames ] )
+    call table3%init( nrows    = nrows,                                &
+                      ncols    = table1%ncols + table2%ncols,          &
+                      colnames = [ table1%colnames, table2%colnames ], &
+                      name     = table1%name,                          &
+                      key      = table1%key,                           &
+                      file     = table1%file )
 
     do i = 1, table3%nrows
       read ( u ) table3%cell(i, :)
@@ -448,9 +455,12 @@ contains
 
     rewind ( u )
 
-    call table3%init ( nrows = nrows, &
-                       ncols = table1%ncols + table2%ncols, &
-                       colnames = [ table1%colnames, table2%colnames ] )
+    call table3%init ( nrows    = nrows,                                &
+                       ncols    = table1%ncols + table2%ncols,          &
+                       colnames = [ table1%colnames, table2%colnames ], &
+                       name     = table1%name,                          &
+                       key      = table1%key,                           &
+                       file     = table1%file )
 
     do i = 1, table3%nrows
       read ( u ) table3%cell(i, :)
@@ -506,9 +516,12 @@ contains
 
     end associate
 
-    call table3%init ( nrows    = count(matches), &
-                       ncols    = table1%ncols + table2%ncols, &
-                       colnames = [ table1%colnames, table2%colnames ] )
+    call table3%init ( nrows    = count(matches),                       &
+                       ncols    = table1%ncols + table2%ncols,          &
+                       colnames = [ table1%colnames, table2%colnames ], &
+                       name     = table1%name,                          &
+                       key      = table1%key,                           &
+                       file     = table1%file )
     k = 0
     do i1 = 1, table1%nrows
       do i2 = 1, table2%nrows
@@ -519,7 +532,7 @@ contains
       end do
     end do
 
-  end function
+  end function inner_join_pure
 
   pure function left_join_pure ( table1, table2 ) result ( table3 )
   ! Note.
@@ -550,9 +563,12 @@ contains
 
     end associate
 
-    call table3%init ( nrows    = count(matches) + table1%nrows, &
-                       ncols    = table1%ncols + table2%ncols,   &
-                       colnames = [ table1%colnames, table2%colnames ] )
+    call table3%init ( nrows    = count(matches) + table1%nrows,        &
+                       ncols    = table1%ncols + table2%ncols,          &
+                       colnames = [ table1%colnames, table2%colnames ], &
+                       name     = table1%name,                          &
+                       key      = table1%key,                           &
+                       file     = table1%file )
     k = 0
     do i1 = 1, table1%nrows
       found = .false.
@@ -573,7 +589,7 @@ contains
     table3%nrows = k
     table3%cell  = table3%cell(1:k, :)
 
-  end function
+  end function left_join_pure
 
   pure function right_join_pure ( table1, table2 ) result ( table3 )
   ! Note.
@@ -593,7 +609,7 @@ contains
     table3%cell(:, 1:table1%ncols)  = table3_%cell(:, table2%ncols+1:)
     table3%cell(:, table1%ncols+1:) = table3_%cell(:, 1:table2%ncols)
 
-  end function
+  end function right_join_pure
 
   pure function append ( table1, table2 ) result ( table3 )
 
@@ -601,13 +617,17 @@ contains
     type(table_ty),  intent(in) :: table2
     type(table_ty)              :: table3
 
-    call table3%init ( nrows = table1%nrows + table2%nrows, &
-                       ncols = table1%ncols )
+    call table3%init ( nrows    = table1%nrows + table2%nrows, &
+                       ncols    = table1%ncols,                &
+                       colnames = table1%colnames,             &
+                       name     = table1%name,                 &
+                       key      = table1%key,                  &
+                       file     = table1%file )
 
     table3%cell(1:table1%nrows,  :) = table1%cell
     table3%cell(table1%nrows+1:, :) = table2%cell
 
-  end function
+  end function append
 
   ! Insert or replace table2 into table1
   pure function insert_or_replace ( table1, table2 ) result ( table3 )
@@ -617,7 +637,7 @@ contains
     type(table_ty)                     :: table3
     type(table_ty)                     :: table3_
     character(LEN_C), allocatable      :: key3(:)
-    integer, allocatable               :: ii(:) ! Quicksort indices
+    integer,          allocatable      :: ii(:) ! Quicksort indices
     integer i, i1, i2, j_key, k
 
     ! Find key columns (shall be the same column index for both tables)
@@ -626,8 +646,12 @@ contains
     associate ( key1 => table1%cell(:, j_key), &
                 key2 => table2%cell(:, j_key) )
 
-    call table3_%init ( nrows = size(union ( key1, key2 )), &
-                        ncols = table1%ncols )
+    call table3_%init ( nrows    = size(union ( key1, key2 )), &
+                        ncols    = table1%ncols,               &
+                        colnames = table1%colnames,            &
+                        name     = table1%name,                &
+                        key      = table1%key,                 &
+                        file     = table1%file )
 
     table3_%cell(1:table1%nrows, :) = table1%cell
 
@@ -665,8 +689,7 @@ contains
       table3%cell(i, :) = table3_%cell(ii(i), :)
     end do
 
-  end function
-
+  end function insert_or_replace
 
   !======================================================
   ! File I/O
@@ -688,7 +711,7 @@ contains
 
     close ( u )
 
-  end subroutine
+  end subroutine write_csv
 
   subroutine read_csv ( this, file )
 
@@ -717,7 +740,7 @@ contains
 
     close ( u )
 
-  end subroutine
+  end subroutine read_csv
 
   function count_cols ( u ) result ( ncols )
     integer, intent(in) :: u
@@ -735,7 +758,7 @@ contains
       if ( chr == ',' ) ncols = ncols + 1
     end do
     10 rewind(u)
-  end function
+  end function count_cols
 
   function count_rows ( u ) result ( nrows )
     integer, intent(in) :: u
@@ -752,7 +775,7 @@ contains
       nrows = nrows + 1
     end do
     10 rewind ( u )
-  end function
+  end function count_rows
 
   pure function get_cells_from_csvline ( csvline ) result ( cells ) 
 
@@ -795,7 +818,7 @@ contains
 
     cells = adjustl(cells)
 
-  end function
+  end function get_cells_from_csvline
 
   pure function get_csvline_from_cells ( cells, sep ) result ( csvline )
 
@@ -817,7 +840,7 @@ contains
       csvline = trim(csvline)//sep_//trim(adjustl(cells(j)))
     end do
 
-  end function
+  end function get_csvline_from_cells
 
   subroutine print_table ( this, n )
 
@@ -859,7 +882,7 @@ contains
     print *, repeat('-', LEN_C*this%ncols)
     print *, ''
 
-  end subroutine
+  end subroutine print_table
 
   !==============================================
   ! Utility Functions
@@ -868,13 +891,13 @@ contains
     class(table_ty), intent(in) :: this
     character(*),    intent(in) :: row
     index_row = findloc( this%rownames, row, dim = 1 )
-  end function
+  end function index_row
 
   pure integer function index_col ( this, col )
     class(table_ty), intent(in) :: this
     character(*),    intent(in) :: col
     index_col = findloc( this%colnames, col, dim = 1 )
-  end function
+  end function index_col
 
   pure function union ( set1, set2 ) result ( cup )
 
@@ -903,7 +926,7 @@ contains
 
     cup = pack( set3, .not. duplicated )
 
-  end function
+  end function union
 
   pure function intersect ( set1, set2 ) result ( cap )
 
@@ -948,7 +971,7 @@ contains
 
     end if
 
-  end function
+  end function intersect
 
   pure subroutine sort_character ( keys, ii )
     ! key shall have numeric value in every string
@@ -956,7 +979,8 @@ contains
     character(*), intent(in)    :: keys(:) ! The array to be sorted
     integer,      intent(inout) :: ii(:)   ! The indices to track sorted order
     character(:), allocatable   :: str
-    integer i, p, i_a, a(size(keys))
+    integer(8)                  :: a(size(keys)) ! Use int8 to handle datetime integer
+    integer i, p, i_a
 
     do concurrent ( i = 1:size(keys) )
       str = ''
@@ -970,11 +994,59 @@ contains
       read ( str, * ) a(i)
     end do
 
-    call sort_integer ( a, ii, 1, size(a) )
+    call sort_integer8 ( a, ii, 1, size(a) )
 
-  end subroutine
+  end subroutine sort_character
 
-  pure recursive subroutine sort_integer ( a, ii, low, high )
+  pure recursive subroutine sort_integer8 ( a, ii, low, high )
+    integer(8), intent(inout) :: a(:)  ! The array to be sorted
+    integer,    intent(inout) :: ii(:) ! The indices to track sorted order
+    integer,    intent(in)    :: low, high
+    integer i, pivot
+    if ( low < high ) then
+      call partition ( a, ii, low, high, pivot )
+      ! Sort the partitions concurrently
+      do concurrent ( i = 1:2 )
+        select case ( i )
+        case ( 1 )
+          call sort_integer8 ( a, ii, low, pivot - 1 )
+        case ( 2 )
+          call sort_integer8 ( a, ii, pivot + 1, high )
+        end select
+      end do
+    end if
+  contains
+    pure subroutine partition ( a, ii, low, high, pivot )
+      integer(8), intent(inout) :: a(:)      ! The array to partition
+      integer,    intent(inout) :: ii(:)     ! The indices array
+      integer,    intent(in)    :: low, high ! The range of the array
+      integer,    intent(out)   :: pivot     ! The pivot index
+      integer(8)                :: pivot_value, tmp_a
+      integer i, j, tmp_ii
+      pivot_value = a(high)
+      i = low - 1
+      do j = low, high - 1
+        if ( a(j) <= pivot_value ) then
+          i = i + 1
+          tmp_a = a(i)
+          a(i) = a(j)
+          a(j) = tmp_a
+          tmp_ii = ii(i)
+          ii(i) = ii(j)
+          ii(j) = tmp_ii
+        end if
+      end do
+      tmp_a = a(i + 1)
+      a(i + 1) = a(high)
+      a(high) = tmp_a
+      tmp_ii = ii(i + 1)
+      ii(i + 1) = ii(high)
+      ii(high) = tmp_ii
+      pivot = i + 1
+    end subroutine
+  end subroutine sort_integer8
+
+  pure recursive subroutine sort_integer4 ( a, ii, low, high )
     integer, intent(inout) :: a(:)  ! The array to be sorted
     integer, intent(inout) :: ii(:) ! The indices to track sorted order
     integer, intent(in)    :: low, high
@@ -985,9 +1057,9 @@ contains
       do concurrent ( i = 1:2 )
         select case ( i )
         case ( 1 )
-          call sort_integer ( a, ii, low, pivot - 1 )
+          call sort_integer4 ( a, ii, low, pivot - 1 )
         case ( 2 )
-          call sort_integer ( a, ii, pivot + 1, high )
+          call sort_integer4 ( a, ii, pivot + 1, high )
         end select
       end do
     end if
@@ -997,29 +1069,30 @@ contains
       integer, intent(inout) :: ii(:)     ! The indices array
       integer, intent(in)    :: low, high ! The range of the array
       integer, intent(out)   :: pivot     ! The pivot index
-      integer i, j, temp, pivot_value
+      integer                :: pivot_value, tmp_a
+      integer i, j, tmp_ii
       pivot_value = a(high)
       i = low - 1
       do j = low, high - 1
         if ( a(j) <= pivot_value ) then
           i = i + 1
-          temp = a(i)
+          tmp_a = a(i)
           a(i) = a(j)
-          a(j) = temp
-          temp = ii(i)
+          a(j) = tmp_a
+          tmp_ii = ii(i)
           ii(i) = ii(j)
-          ii(j) = temp
+          ii(j) = tmp_ii
         end if
       end do
-      temp = a(i + 1)
+      tmp_a = a(i + 1)
       a(i + 1) = a(high)
-      a(high) = temp
-      temp = ii(i + 1)
+      a(high) = tmp_a
+      tmp_ii = ii(i + 1)
       ii(i + 1) = ii(high)
-      ii(high) = temp
+      ii(high) = tmp_ii
       pivot = i + 1
     end subroutine
-  end subroutine
+  end subroutine sort_integer4
 
   !==============================================
   ! Column Converter
@@ -1033,14 +1106,14 @@ contains
     integer,         intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
     cvals = table%cell(:, col)
-  end function
+  end function to_character_colindex
 
   function to_character_colname ( table, col ) result ( cvals )
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
     character(LEN_C)            :: cvals(table%nrows) 
     cvals = table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 ))
-  end function
+  end function to_character_colname
 
   function to_logical_colindex ( table, col ) result ( lvals )
     class(table_ty), intent(in) :: table
@@ -1055,7 +1128,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, col), * ) lvals(i)
     end do
-  end function
+  end function to_logical_colindex
 
   function to_logical_colname ( table, col ) result ( lvals )
     class(table_ty), intent(in) :: table
@@ -1071,7 +1144,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, j), * ) lvals(i)
     end do
-  end function
+  end function to_logical_colname
 
   function to_integer_colindex ( table, col ) result ( ivals )
     class(table_ty), intent(in)   :: table
@@ -1092,7 +1165,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       read ( cell(i, col), * ) ivals(i)
     end do
-  end function
+  end function to_integer_colindex
 
   function to_integer_colname ( table, col ) result ( ivals )
     class(table_ty), intent(in)   :: table
@@ -1114,7 +1187,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       read ( cell(i, j), * ) ivals(i)
     end do
-  end function
+  end function to_integer_colname
 
   function to_real_colindex ( table, col ) result ( rvals )
     class(table_ty), intent(in)   :: table
@@ -1135,7 +1208,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       read ( cell(i, col), * ) rvals(i)
     end do
-  end function
+  end function to_real_colindex
 
   function to_real_colname ( table, col ) result ( rvals )
     class(table_ty), intent(in)   :: table
@@ -1157,7 +1230,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       read ( cell(i, j), * ) rvals(i)
     end do
-  end function
+  end function to_real_colname
 
   !----------------------------------------------
   ! Another type to column (character)
@@ -1168,14 +1241,14 @@ contains
     character(*),    intent(in)    :: vals(table%nrows) 
     integer,         intent(in)    :: col
     table%cell(:, col) = vals
-  end subroutine
+  end subroutine from_character_colindex
 
   pure subroutine from_character_colname ( table, vals, col )
     class(table_ty), intent(inout) :: table
     character(*),    intent(in)    :: vals(table%nrows) 
     character(*),    intent(in)    :: col
     table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 )) = vals
-  end subroutine
+  end subroutine from_character_colname
 
   pure subroutine from_logical_colindex ( table, vals, col )
     class(table_ty), intent(inout) :: table
@@ -1185,7 +1258,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       write ( table%cell(i, col), * ) vals(i)
     end do
-  end subroutine
+  end subroutine from_logical_colindex
 
   pure subroutine from_logical_colname ( table, vals, col )
     class(table_ty), intent(inout) :: table
@@ -1196,7 +1269,7 @@ contains
     do concurrent ( i = 1:table%nrows )
      write ( table%cell(i, j), * ) vals(i)
     end do
-  end subroutine
+  end subroutine from_logical_colname
 
   pure subroutine from_integer_colindex ( table, vals, col )
     class(table_ty), intent(inout) :: table
@@ -1206,7 +1279,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       write ( table%cell(i, col), * ) vals(i)
     end do
-  end subroutine
+  end subroutine from_integer_colindex
 
   pure subroutine from_integer_colname ( table, vals, col )
     class(table_ty), intent(inout) :: table
@@ -1217,7 +1290,7 @@ contains
     do concurrent ( i = 1:table%nrows )
      write ( table%cell(i, j), * ) vals(i)
     end do
-  end subroutine
+  end subroutine from_integer_colname
 
   pure subroutine from_real_colindex ( table, vals, col )
     class(table_ty), intent(inout) :: table
@@ -1227,7 +1300,7 @@ contains
     do concurrent ( i = 1:table%nrows )
       write ( table%cell(i, col), * ) vals(i)
     end do
-  end subroutine
+  end subroutine from_real_colindex
 
   pure subroutine from_real_colname ( table, vals, col )
     class(table_ty), intent(inout) :: table
@@ -1238,6 +1311,6 @@ contains
     do concurrent ( i = 1:table%nrows )
      write ( table%cell(i, j), * ) vals(i)
     end do
-  end subroutine
+  end subroutine from_real_colname
 
 end module

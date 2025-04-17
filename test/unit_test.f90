@@ -512,4 +512,17 @@ program unit_test_table_mo
     print *, 'Rank:', i, ', Value: ', trim( str(ii(i)) )
   end do
 
+  print *, '-----------------------------------------'
+  print *, 'Test C-6: Datetime sort with indices'
+  print *, '-----------------------------------------'
+
+  str = [ '2025-05-01 20:00:00', '2025-05-01 12:00:00', '2025-05-01 06:00:00', '2025-04-01 00:00:00' ]
+  ii  = [( i, i = 1, size(str) )]
+
+  call sort_character ( str, ii )
+
+  do i = 1, size(str)
+    print *, 'Rank:', i, ', Value: ', trim( str(ii(i)) )
+  end do
+
 end program
