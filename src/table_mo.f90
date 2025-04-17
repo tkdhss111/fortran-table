@@ -72,13 +72,13 @@ module table_mo
 
 contains
 
-  pure subroutine init_table ( this, nrows, ncols, cell, rownames, colnames, name, file, key )
+  pure subroutine init_table ( this, nrows, ncols, cell, rownames, colnames, name, key, file )
 
     class(table_ty),           intent(inout) :: this
     integer,                   intent(in)    :: nrows, ncols
     character(*),    optional, intent(in)    :: cell(:, :)
     character(*),    optional, intent(in)    :: rownames(:), colnames(:)
-    character(*),    optional, intent(in)    :: name, file, key
+    character(*),    optional, intent(in)    :: name, key, file
 
     if ( allocated( this%rownames ) ) deallocate ( this%rownames )
     if ( allocated( this%colnames ) ) deallocate ( this%colnames )
@@ -115,14 +115,14 @@ contains
       this%name = ''
     end if
 
+    if ( present( key ) ) then
+      this%key = key
+    end if
+
     if ( present( file ) ) then
       this%file = file
     else
       this%file = ''
-    end if
-
-    if ( present( key ) ) then
-      this%key = key
     end if
 
   end subroutine
@@ -143,6 +143,7 @@ contains
       colnames = table%colnames(cols), &
       cell     = table%cell(:, cols),  &
       name     = table%name,           &
+      key      = table%key,            &
       file     = table%file )
 
   end function
@@ -193,6 +194,7 @@ contains
       colnames = table%colnames,       &
       cell     = table%cell(rows, :),  &
       name     = table%name,           &
+      key      = table%key,            &
       file     = table%file )
 
   end function
@@ -322,6 +324,7 @@ contains
       ncols    = table%ncols + 1, &
       rownames = table%rownames,  &
       name     = table%name,      &
+      key      = table%key,       &
       file     = table%file )
 
     select type ( x )
