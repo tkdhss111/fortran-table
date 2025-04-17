@@ -79,6 +79,7 @@ from_real_colname	src/table_devel_class_x_mo.f90	/^  pure subroutine from_real_c
 from_real_colname	src/table_mo.f90	/^  pure subroutine from_real_colname /;"	s
 get_cells_from_csvline	src/table_devel_class_x_mo.f90	/^  pure function get_cells_from_csvline /;"	f
 get_cells_from_csvline	src/table_mo.f90	/^  pure function get_cells_from_csvline /;"	f
+get_csvline_from_cells	src/table_mo.f90	/^  pure function get_csvline_from_cells /;"	f
 get_datetime	test/large_data/dt_mo.f90	/^  pure elemental character(19) function get_datetime /;"	f
 get_pos_rec	test/large_data/dt_mo.f90	/^  pure elemental integer function get_pos_rec /;"	f
 get_rec_date	test/large_data/dt_mo.f90	/^  pure elemental integer function get_rec_date /;"	f

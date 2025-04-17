@@ -1,4 +1,4 @@
-t2_col1                 ,key                     ,t2_col3                 
-t2_11                   ,key3                    ,t2_13                   
-t2_21                   ,key2                    ,t2_23                   
-t2_31                   ,key5                    ,t2_33                   
+t2_col1,key,t2_col3
+t2_11,key3,t2_13
+t2_21,key2,t2_23
+t2_31,key5,t2_33

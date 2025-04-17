@@ -12,7 +12,7 @@ module table_mo
   public :: insert_or_replace, append
   public :: union, intersect
   public :: sort_integer, sort_character
-  public :: get_cells_from_csvline
+  public :: get_cells_from_csvline, get_csvline_from_cells
 
   integer,          parameter :: LEN_C = 24     ! Character length of each cell
   character(LEN_C), parameter :: cNA   = 'NA'   ! N/A data notation for character
@@ -673,10 +673,10 @@ contains
 
     open ( newunit = u, file = file, status = 'unknown' )
 
-    write ( u, '( *(a, :, ",") )' ) this%colnames
+    write ( u, '(a)' ) get_csvline_from_cells ( this%colnames )
 
     do i = 1, this%nrows
-      write ( u, '( *(a, :, ",") )' ) this%cell(i, :)
+      write ( u, '(a)' ) get_csvline_from_cells ( this%cell(i, :) )
     end do
 
     close ( u )
@@ -787,6 +787,28 @@ contains
     end do
 
     cells = adjustl(cells)
+
+  end function
+
+  pure function get_csvline_from_cells ( cells, sep ) result ( csvline )
+
+    character(*), intent(in)           :: cells(:)
+    character(1), intent(in), optional :: sep
+    character(1)                       :: sep_
+    character(:), allocatable          :: csvline
+    integer j
+
+    if ( present (sep) ) then
+      sep_ = sep
+    else
+      sep_ = ','
+    end if
+
+    csvline = trim(adjustl(cells(1)))
+
+    do j = 2, size(cells)
+      csvline = trim(csvline)//sep_//trim(adjustl(cells(j)))
+    end do
 
   end function
 
