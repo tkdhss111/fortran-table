@@ -200,6 +200,12 @@ Read CSV file:
 call table%read_csv  ( file = "mytable.csv" )
 ```
 
+Write Parquet file:
+
+```
+call table%write_parquet ( file = "mytable.parquet" )
+```
+
 ## Column Converter
 
 ### Table column (character) -> {character, logical, integer, real} vector

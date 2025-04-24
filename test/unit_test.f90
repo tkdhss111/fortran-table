@@ -369,6 +369,14 @@ program unit_test_table_mo
   call table3%read_csv ( file = 'table1.csv' )
   call table4%read_csv ( file = 'table2.csv' )
 
+  print *, '-----------------------------------------'
+  print *, 'Test A-3: Write Parquet File'
+  print *, 'Note. duckdb is required'
+  print *, '-----------------------------------------'
+
+  call table1%write_parquet ( file = 'table1.parquet' )
+  call table2%write_parquet ( file = 'table2.parquet' )
+
   print *, '=========================================='
   print *, 'Test B: Column Converter'
   print *, '=========================================='

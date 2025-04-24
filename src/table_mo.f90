@@ -13,6 +13,8 @@ module table_mo
   public :: union, intersect
   public :: sort_integer, sort_character
   public :: get_cells_from_csvline, get_csvline_from_cells
+  public :: count_rows, count_cols
+  public :: csv2parquet
 
   integer,          parameter :: LEN_C = 24     ! Character length of each cell
   character(LEN_C), parameter :: cNA   = 'NA'   ! N/A data notation for character
@@ -51,7 +53,7 @@ module table_mo
     generic   :: from_real      => from_real_colindex,      from_real_colname 
     procedure :: inner_join, left_join, right_join
     procedure :: insert_or_replace, append
-    procedure :: write_csv, read_csv
+    procedure :: write_csv, read_csv, write_parquet
     procedure :: print => print_table
     generic, public :: operator(+) => insert_or_replace
     generic, public :: operator(*) => left_join
@@ -712,6 +714,36 @@ contains
     close ( u )
 
   end subroutine write_csv
+
+  subroutine write_parquet ( this, file )
+
+    class(table_ty), intent(in) :: this
+    character(*),    intent(in) :: file
+    character(:), allocatable   :: csv
+
+    csv = file(1:len_trim(file)-8)//'.csv'
+    call write_csv ( this, csv )
+    call csv2parquet ( csv, file )
+
+  end subroutine write_parquet
+
+  subroutine csv2parquet ( csv, parquet )
+
+    ! Note. duckdb is required
+
+    character(*), intent(in)  :: csv, parquet
+    character(:), allocatable :: query
+
+    ! Do not include TIMESTAMP-related column types,
+    ! or duckdb automatically converts datetime to UTC datatime.
+    query = 'COPY (SELECT * FROM read_csv("'//trim(csv)//&
+            '", auto_type_candidates = ["BOOLEAN", "BIGINT", "DOUBLE", "VARCHAR"])) TO "'//&
+            trim(parquet)//'" WITH(FORMAT PARQUET)'
+
+    call execute_command_line ( 'duckdb -c "'//trim(query)//'"' )
+    call execute_command_line ( 'duckdb -c "SELECT * FROM '//"'"//trim(parquet)//"'"//' LIMIT 5"' )
+
+  end subroutine csv2parquet
 
   subroutine read_csv ( this, file )
 

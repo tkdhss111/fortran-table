@@ -31,6 +31,7 @@ count_cols	src/table_mo.f90	/^  function count_cols /;"	f
 count_days	test/large_data/dt_mo.f90	/^  pure elemental integer function count_days /;"	f
 count_rows	src/table_devel_class_x_mo.f90	/^  function count_rows /;"	f
 count_rows	src/table_mo.f90	/^  function count_rows /;"	f
+csv2parquet	src/table_mo.f90	/^  subroutine csv2parquet /;"	s
 cup	src/table_devel_class_x_mo.f90	/^    character(LEN_C), allocatable :: cup(/;"	v
 cup	src/table_mo.f90	/^    character(LEN_C), allocatable :: cup(/;"	v
 cvals	test/unit_test.f90	/^  character(LEN_C), allocatable :: cvals(/;"	v	program:unit_test_table_mo
@@ -218,3 +219,4 @@ unit_test_table_mo	test/large_data/unit_test_large_data.f90	/^program unit_test_
 unit_test_table_mo	test/unit_test.f90	/^program unit_test_table_mo$/;"	p
 write_csv	src/table_devel_class_x_mo.f90	/^  subroutine write_csv /;"	s
 write_csv	src/table_mo.f90	/^  subroutine write_csv /;"	s
+write_parquet	src/table_mo.f90	/^  subroutine write_parquet /;"	s
