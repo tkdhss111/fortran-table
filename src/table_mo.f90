@@ -736,10 +736,10 @@ contains
 
     ! Do not include TIMESTAMP-related column types,
     ! or duckdb automatically converts datetime to UTC datatime.
-    query = 'COPY (SELECT * FROM read_csv("'//trim(csv)//&
-            '", auto_type_candidates = ["BOOLEAN", "BIGINT", "DOUBLE", "VARCHAR"])) TO "'//&
-            trim(parquet)//'" WITH(FORMAT PARQUET)'
-
+    query = "COPY (SELECT * FROM read_csv('"//trim(csv)//&
+          "', auto_type_candidates = ['BOOLEAN', 'BIGINT', 'DOUBLE', 'VARCHAR'])) TO '"//&
+          trim(parquet)//"' (FORMAT 'parquet')"
+    !print *, 'query: ', trim(query)
     call execute_command_line ( 'duckdb -c "'//trim(query)//'"' )
     call execute_command_line ( 'duckdb -c "SELECT * FROM '//"'"//trim(parquet)//"'"//' LIMIT 5"' )
 
