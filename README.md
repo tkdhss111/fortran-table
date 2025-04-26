@@ -158,7 +158,6 @@ table3 = table1%right_join ( table2 )
 In the following example, 
 if a record with the same key exits in table1, then it is replaced by the corresponding record in table2.
 If there is no matching key in table1, then the record of table2 is appended to table1.
-Records are sorted increasingly in accordance with the matching key order.
 
 ```
 table3 = insert_or_replace ( table1, table2 )

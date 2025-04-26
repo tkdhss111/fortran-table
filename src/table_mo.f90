@@ -637,9 +637,7 @@ contains
     class(table_ty),        intent(in) :: table1
     type(table_ty),         intent(in) :: table2
     type(table_ty)                     :: table3
-    type(table_ty)                     :: table3_
     character(LEN_C), allocatable      :: key3(:)
-    integer,          allocatable      :: ii(:) ! Quicksort indices
     integer i, i1, i2, j_key, k
 
     ! Find key columns (shall be the same column index for both tables)
@@ -648,14 +646,14 @@ contains
     associate ( key1 => table1%cell(:, j_key), &
                 key2 => table2%cell(:, j_key) )
 
-    call table3_%init ( nrows    = size(union ( key1, key2 )), &
-                        ncols    = table1%ncols,               &
-                        colnames = table1%colnames,            &
-                        name     = table1%name,                &
-                        key      = table1%key,                 &
-                        file     = table1%file )
+    call table3%init ( nrows    = size(union ( key1, key2 )), &
+                       ncols    = table1%ncols,               &
+                       colnames = table1%colnames,            &
+                       name     = table1%name,                &
+                       key      = table1%key,                 &
+                       file     = table1%file )
 
-    table3_%cell(1:table1%nrows, :) = table1%cell
+    table3%cell(1:table1%nrows, :) = table1%cell
 
     k = table1%nrows + 1
 
@@ -664,32 +662,20 @@ contains
       ! Replace
       do i1 = 1, table1%nrows
         if ( key1(i1) == key2(i2) ) then
-          table3_%cell(i1, :) = table2%cell(i2, :)
+          table3%cell(i1, :) = table2%cell(i2, :)
           exit
         end if
       end do
 
       ! Append
       if ( i1 > table1%nrows ) then
-        table3_%cell(k, :) = table2%cell(i2, :)
+        table3%cell(k, :) = table2%cell(i2, :)
         k = k + 1
       end if
 
     end do
 
     end associate
-
-    ! Sort records
-    table3 = table3_
-
-    key3 = table3_%cell(:, j_key)
-    ii   = [( i, i = 1, table3%nrows )]
-
-    call sort_character ( key3, ii )
-
-    do concurrent ( i = 1:table3%nrows )
-      table3%cell(i, :) = table3_%cell(ii(i), :)
-    end do
 
   end function insert_or_replace
 
@@ -715,15 +701,26 @@ contains
 
   end subroutine write_csv
 
-  subroutine write_parquet ( this, file )
+  subroutine write_parquet ( this, file, print )
 
     class(table_ty), intent(in) :: this
     character(*),    intent(in) :: file
     character(:), allocatable   :: csv
+    logical, optional           :: print
+    logical                     :: print_
+
+    if ( present ( print ) ) then
+      print_ = print
+    else
+      print_ = .false.
+    end if
 
     csv = file(1:len_trim(file)-8)//'.csv'
     call write_csv ( this, csv )
     call csv2parquet ( csv, file )
+    if ( print_ ) then
+      call execute_command_line ( 'duckdb -c "SELECT * FROM '//"'"//trim(file)//"'"//'"' )
+    end if
 
   end subroutine write_parquet
 
@@ -741,7 +738,6 @@ contains
           trim(parquet)//"' (FORMAT 'parquet')"
     !print *, 'query: ', trim(query)
     call execute_command_line ( 'duckdb -c "'//trim(query)//'"' )
-    call execute_command_line ( 'duckdb -c "SELECT * FROM '//"'"//trim(parquet)//"'"//' LIMIT 5"' )
 
   end subroutine csv2parquet
 
@@ -831,12 +827,13 @@ contains
     end do
 
     if ( allocated ( cells ) ) deallocate ( cells )
-    allocate ( cells(nc + 1) )
 
     if ( nc == 0 ) then
       allocate ( cells(1) )
       cells = trim(csvline)
       return
+    else
+      allocate ( cells(nc + 1) )
     end if
 
     ! Fetch a string between commas
@@ -860,7 +857,7 @@ contains
     character(:), allocatable          :: csvline
     integer j
 
-    if ( present (sep) ) then
+    if ( present ( sep ) ) then
       sep_ = sep
     else
       sep_ = ','
@@ -931,32 +928,66 @@ contains
     index_col = findloc( this%colnames, col, dim = 1 )
   end function index_col
 
+!  pure function union ( set1, set2 ) result ( cup )
+!
+!    character(LEN_C), intent(in)  :: set1(:)
+!    character(LEN_C), intent(in)  :: set2(:)
+!    character(LEN_C), allocatable :: set3(:)
+!    character(LEN_C), allocatable :: cup(:)
+!    logical, allocatable          :: duplicated(:)
+!    integer i, j, n
+!
+!    set3 = [ set1, set2 ] ! character length shall be the same in both set1 and set2
+!
+!    n = size(set3)
+!
+!    allocate ( duplicated(n), source = .false. )
+!
+!    do i = 1, n
+!      if ( .not. duplicated(i) ) then
+!        do concurrent ( j = 1:n, j /= i )
+!          if ( set3(i) == set3(j) ) then
+!            duplicated(j) = .true.
+!          end if
+!        end do
+!      end if
+!    end do
+!
+!    cup = pack( set3, .not. duplicated )
+!
+!  end function union
+
   pure function union ( set1, set2 ) result ( cup )
 
     character(LEN_C), intent(in)  :: set1(:)
     character(LEN_C), intent(in)  :: set2(:)
-    character(LEN_C), allocatable :: set3(:)
     character(LEN_C), allocatable :: cup(:)
-    logical, allocatable          :: duplicated(:)
-    integer i, j, n
+    logical,          allocatable :: dup(:)
+    integer i1, i2, n1, n2, n, ndups
 
-    set3 = [ set1, set2 ] ! character length shall be the same in both set1 and set2
+    n1 = size(set1)
+    n2 = size(set2)
 
-    n = size(set3)
+    allocate ( dup(n2), source = .false. )
 
-    allocate ( duplicated(n), source = .false. )
-
-    do i = 1, n
-      if ( .not. duplicated(i) ) then
-        do concurrent ( j = 1:n, j /= i )
-          if ( set3(i) == set3(j) ) then
-            duplicated(j) = .true.
-          end if
-        end do
-      end if
+    do concurrent ( i2 = 1:n2 )
+      do concurrent ( i1 = 1:n1 )
+        if ( set1(i1) == set2(i2) ) then
+            dup(i2) = .true.
+        end if
+      end do
     end do
 
-    cup = pack( set3, .not. duplicated )
+    ndups = count ( dup )
+
+    if ( ndups == 0 ) then
+      cup = [ set1, set2 ]
+    else
+      n = n1 + n2 - ndups
+      allocate ( cup(n) )
+      cup(1:n1) = set1
+      cup(n1+1:n) = pack ( set2, .not. dup )
+    end if
 
   end function union
 
@@ -970,7 +1001,7 @@ contains
 
     n1 = size(set1)
     n2 = size(set2)
-    
+
     if ( n1 < n2 ) then ! set1 is smaller
 
       allocate ( duplicated(n1), source = .false. )

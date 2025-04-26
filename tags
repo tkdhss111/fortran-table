@@ -51,8 +51,8 @@ diff_hrs	test/large_data/dt_mo.f90	/^  pure elemental function diff_hrs /;"	f
 diff_mins	test/large_data/dt_mo.f90	/^  pure elemental function diff_mins /;"	f
 diff_secs	test/large_data/dt_mo.f90	/^  pure elemental integer function diff_secs /;"	f
 dt_mo	test/large_data/dt_mo.f90	/^module dt_mo$/;"	m
+dup	src/table_mo.f90	/^    logical,          allocatable :: dup(/;"	v
 duplicated	src/table_devel_class_x_mo.f90	/^    logical, allocatable          :: duplicated(/;"	v
-duplicated	src/table_mo.f90	/^    logical, allocatable          :: duplicated(/;"	v
 end	test/large_data/dt_mo.f90	/^    integer :: start = 0, end /;"	k	type:tm_ty
 file	src/table_devel_class_x_mo.f90	/^    character(255)                :: name, file$/;"	k	type:table_ty
 file	src/table_mo.f90	/^    character(255)                :: name, file$/;"	k	type:table_ty
@@ -86,8 +86,9 @@ get_pos_rec	test/large_data/dt_mo.f90	/^  pure elemental integer function get_po
 get_rec_date	test/large_data/dt_mo.f90	/^  pure elemental integer function get_rec_date /;"	f
 hrs	test/large_data/dt_mo.f90	/^    integer :: hrs,/;"	k	type:diff_dt_ty
 i	src/table_devel_class_x_mo.f90	/^    in/;"	v
-i	src/table_mo.f90	/^    in/;"	v
 i	test/unit_test.f90	/^  in/;"	v	program:unit_test_table_mo
+i1	src/table_mo.f90	/^    integer i1,/;"	v
+i2	src/table_mo.f90	/^    integer i1, i2,/;"	v
 iNA	src/table_mo.f90	/^  integer,          parameter :: iNA /;"	v	module:table_mo
 ii	test/unit_test.f90	/^  integer, allocatable :: ii(/;"	v	program:unit_test_table_mo
 index_col	src/table_mo.f90	/^  pure integer function index_col /;"	f
@@ -106,7 +107,6 @@ intersect	src/table_mo.f90	/^  pure function intersect /;"	f
 is_leap_yr	test/large_data/dt_mo.f90	/^  pure elemental logical function is_leap_yr /;"	f
 ivals	test/unit_test.f90	/^  integer,          allocatable :: ivals(/;"	v	program:unit_test_table_mo
 j	src/table_devel_class_x_mo.f90	/^    integer i, j,/;"	v
-j	src/table_mo.f90	/^    integer i, j,/;"	v
 jj	test/unit_test.f90	/^  integer, allocatable :: ii(:), jj(/;"	v	program:unit_test_table_mo
 key	src/table_devel_class_x_mo.f90	/^    character(LEN_C)              :: key /;"	k	type:table_ty
 key	src/table_mo.f90	/^    character(LEN_C)              :: key /;"	k	type:table_ty
@@ -127,11 +127,14 @@ mons	test/large_data/dt_mo.f90	/^    integer :: mons,/;"	k	type:diff_dt_ty
 msg	test/large_data/dt_mo.f90	/^    character(255) :: msg$/;"	k	type:tm_ty
 n	src/table_devel_class_x_mo.f90	/^    int/;"	v
 n	src/table_mo.f90	/^    int/;"	v
+n1	src/table_mo.f90	/^    integer i1, i2, n1,/;"	v
+n2	src/table_mo.f90	/^    integer i1, i2, n1, n2,/;"	v
 name	src/table_devel_class_x_mo.f90	/^    character(255)                :: name,/;"	k	type:table_ty
 name	src/table_mo.f90	/^    character(255)                :: name,/;"	k	type:table_ty
 ncols	src/table_devel_class_x_mo.f90	/^    integer                       :: nrows, ncols$/;"	k	type:table_ty
 ncols	src/table_mo.f90	/^    integer                       :: nrows, ncols$/;"	k	type:table_ty
 ndays_mon	test/large_data/dt_mo.f90	/^  pure elemental integer function ndays_mon /;"	f
+ndups	src/table_mo.f90	/^    integer i1, i2, n1, n2, n, ndups$/;"	v
 nrows	src/table_devel_class_x_mo.f90	/^    integer                       :: nrows,/;"	k	type:table_ty
 nrows	src/table_mo.f90	/^    integer                       :: nrows,/;"	k	type:table_ty
 partition	src/table_devel_class_x_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer
@@ -171,7 +174,6 @@ set2	src/table_devel_class_x_mo.f90	/^    character(LEN_C), intent(in)  :: set2(
 set2	src/table_mo.f90	/^    character(LEN_C), intent(in)  :: set2(/;"	v
 set2	test/unit_test.f90	/^  character(LEN_C), allocatable :: set1(:), set2(/;"	v	program:unit_test_table_mo
 set3	src/table_devel_class_x_mo.f90	/^    character(LEN_C), allocatable :: set3(/;"	v
-set3	src/table_mo.f90	/^    character(LEN_C), allocatable :: set3(/;"	v
 set3	test/unit_test.f90	/^  character(LEN_C), allocatable :: set1(:), set2(:), set3(/;"	v	program:unit_test_table_mo
 set_now	test/large_data/dt_mo.f90	/^  type(dt_ty) function set_now /;"	f
 sort_character	src/table_devel_class_x_mo.f90	/^  pure subroutine sort_character /;"	s

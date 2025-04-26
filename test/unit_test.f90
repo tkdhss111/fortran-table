@@ -375,7 +375,7 @@ program unit_test_table_mo
   print *, '-----------------------------------------'
 
   call table1%write_parquet ( file = 'table1.parquet' )
-  call table2%write_parquet ( file = 'table2.parquet' )
+  call table2%write_parquet ( file = 'table2.parquet', print = .true. )
 
   print *, '=========================================='
   print *, 'Test B: Column Converter'
@@ -474,6 +474,19 @@ program unit_test_table_mo
 
   set1 = ['key1', 'key2', 'key3']
   set2 = ['key4', 'key1', 'key5', 'key2']
+
+  set3 = union ( set1, set2 )
+
+  do i = 1, size(set3)
+    print *, i, trim(set3(i))
+  end do
+
+  print *, '-----------------------------------------'
+  print *, 'Test C-2a: Union of 2 sets of timestamps'
+  print *, '-----------------------------------------'
+
+  set1 = ['2000-01-01 00:00:00', '2000-01-01 00:00:01', '2009-01-01 00:00:01']
+  set2 = ['2000-01-01 00:00:00', '2000-01-01 00:00:01', '2009-01-01 00:00:02']
 
   set3 = union ( set1, set2 )
 
