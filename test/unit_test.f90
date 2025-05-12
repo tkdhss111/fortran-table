@@ -5,6 +5,7 @@ program unit_test_table_mo
   implicit none
 
   type(table_ty)                :: table, table1, table2, table3, table4
+  type(table_ty)                :: table_empty
   character(LEN_C), allocatable :: set1(:), set2(:), set3(:), str(:)
   character(LEN_C), allocatable :: cvals(:)
   logical,          allocatable :: lvals(:)
@@ -32,6 +33,17 @@ program unit_test_table_mo
 
   call table%print
   call table%print ( n = 2 ) ! with n rows 
+
+  print *, '------------------------------------------'
+  print *, 'Test 1-1: Empty table'
+  print *, '------------------------------------------'
+
+  call table_empty%init ( &
+    nrows    = 0,   & ! <- This means an empty table
+    ncols    = 3,   &
+    colnames = [ 'col1', 'col2', 'col3' ] )
+
+  call table_empty%print
 
   print *, '=========================================='
   print *, 'Test 2: Select'
@@ -190,6 +202,14 @@ program unit_test_table_mo
   print *, '------------------------------------------'
 
   cvals = [( 'char', i = 1, table%nrows )]
+  table1 = table%insert_col ( x = cvals, colname = 'this_col' )
+  call table1%print
+
+  print *, '------------------------------------------'
+  print *, 'Test 5-4: option with col name'
+  print *, '------------------------------------------'
+
+  cvals = [( 'char', i = 1, table%nrows )]
   table1 = table%insert_col ( x = cvals, before = 'col3', colname = 'this_col' )
   call table1%print
 
@@ -333,6 +353,14 @@ program unit_test_table_mo
 
   call table3%print
 
+  print *, '-----------------------------------------'
+  print *, 'Test SQL4-4: with operator(+) and empty table'
+  print *, '-----------------------------------------'
+
+  table3 = table1 + table_empty
+
+  call table3%print
+
   print *, '=========================================='
   print *, 'Test SQL5: Append'
   print *, '=========================================='
@@ -348,6 +376,14 @@ program unit_test_table_mo
   print *, '-----------------------------------------'
 
   table3 = table1%append ( table2 )
+
+  call table3%print
+
+  print *, '-----------------------------------------'
+  print *, 'Test SQL5-2: as type-bound procedure and empty table'
+  print *, '-----------------------------------------'
+
+  table3 = table1%append ( table_empty )
 
   call table3%print
 
