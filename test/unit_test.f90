@@ -397,7 +397,8 @@ program unit_test_table_mo
 
   call table1%write_csv ( file = 'table1.csv' )
   call table2%write_csv ( file = 'table2.csv' )
-
+  call table_empty%write_csv ( file = 'table_empty.csv' )
+stop
   print *, '-----------------------------------------'
   print *, 'Test A-2: Read CSV File'
   print *, '-----------------------------------------'

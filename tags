@@ -31,6 +31,7 @@ count_cols	src/table_mo.f90	/^  function count_cols /;"	f
 count_days	test/large_data/dt_mo.f90	/^  pure elemental integer function count_days /;"	f
 count_rows	src/table_devel_class_x_mo.f90	/^  function count_rows /;"	f
 count_rows	src/table_mo.f90	/^  function count_rows /;"	f
+count_seps	src/table_mo.f90	/^  pure elemental function count_seps /;"	f
 csv2parquet	src/table_mo.f90	/^  subroutine csv2parquet /;"	s
 cup	src/table_devel_class_x_mo.f90	/^    character(LEN_C), allocatable :: cup(/;"	v
 cup	src/table_mo.f90	/^    character(LEN_C), allocatable :: cup(/;"	v
@@ -132,11 +133,11 @@ n2	src/table_mo.f90	/^    integer i1, i2, n1, n2,/;"	v
 name	src/table_devel_class_x_mo.f90	/^    character(255)                :: name,/;"	k	type:table_ty
 name	src/table_mo.f90	/^    character(255)                :: name,/;"	k	type:table_ty
 ncols	src/table_devel_class_x_mo.f90	/^    integer                       :: nrows, ncols$/;"	k	type:table_ty
-ncols	src/table_mo.f90	/^    integer                       :: nrows, ncols$/;"	k	type:table_ty
+ncols	src/table_mo.f90	/^    integer                       :: ncols /;"	k	type:table_ty
 ndays_mon	test/large_data/dt_mo.f90	/^  pure elemental integer function ndays_mon /;"	f
 ndups	src/table_mo.f90	/^    integer i1, i2, n1, n2, n, ndups$/;"	v
 nrows	src/table_devel_class_x_mo.f90	/^    integer                       :: nrows,/;"	k	type:table_ty
-nrows	src/table_mo.f90	/^    integer                       :: nrows,/;"	k	type:table_ty
+nrows	src/table_mo.f90	/^    integer                       :: nrows /;"	k	type:table_ty
 partition	src/table_devel_class_x_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer
 partition	src/table_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer4
 partition	src/table_mo.f90	/^    pure subroutine partition /;"	s	subroutine:sort_integer8
@@ -193,6 +194,7 @@ table2	test/large_data/unit_test_large_data.f90	/^  type(table_ty) :: table, tab
 table2	test/unit_test.f90	/^  type(table_ty)                :: table, table1, table2,/;"	v	program:unit_test_table_mo
 table3	test/unit_test.f90	/^  type(table_ty)                :: table, table1, table2, table3,/;"	v	program:unit_test_table_mo
 table4	test/unit_test.f90	/^  type(table_ty)                :: table, table1, table2, table3, table4$/;"	v	program:unit_test_table_mo
+table_empty	test/unit_test.f90	/^  type(table_ty)                :: table_empty$/;"	v	program:unit_test_table_mo
 table_mo	src/table_devel_class_x_mo.f90	/^module table_mo$/;"	m
 table_mo	src/table_mo.f90	/^module table_mo$/;"	m
 table_ty	src/table_devel_class_x_mo.f90	/^  type table_ty$/;"	t	module:table_mo

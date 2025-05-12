@@ -13,7 +13,7 @@ module table_mo
   public :: union, intersect
   public :: sort_integer, sort_character
   public :: get_cells_from_csvline, get_csvline_from_cells
-  public :: count_rows, count_cols
+  public :: count_rows, count_cols, count_seps
   public :: csv2parquet
 
   integer,          parameter :: LEN_C = 24     ! Character length of each cell
@@ -23,7 +23,8 @@ module table_mo
 
   type table_ty
 
-    integer                       :: nrows, ncols
+    integer                       :: nrows = 0
+    integer                       :: ncols = 0
     character(LEN_C), allocatable :: rownames(:), colnames(:)
     character(LEN_C), allocatable :: cell(:, :)
     character(LEN_C)              :: key  = 'key'
@@ -637,8 +638,7 @@ contains
     class(table_ty),        intent(in) :: table1
     type(table_ty),         intent(in) :: table2
     type(table_ty)                     :: table3
-    character(LEN_C), allocatable      :: key3(:)
-    integer i, i1, i2, j_key, k
+    integer i1, i2, j_key, k
 
     ! Find key columns (shall be the same column index for both tables)
     j_key = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
@@ -752,9 +752,13 @@ contains
 
     nrows = count_rows ( u ) - 1
     ncols = count_cols ( u )
-    if ( nrows == 0 ) stop 'No record is available'
 
     call this%init ( nrows = nrows, ncols = ncols, file = file )
+
+    if ( nrows == 0 ) then
+      print *, '*** Warning: No record is available. file: '//trim(file)
+      return
+    end if
 
     ! Colnames
     read ( u, '(a)' ) csvline
@@ -769,6 +773,24 @@ contains
     close ( u )
 
   end subroutine read_csv
+
+  pure elemental function count_seps ( line, sep ) result ( n )
+    character(*),           intent(in) :: line
+    character(1), optional, intent(in) :: sep
+    character(1)                       :: sep_
+    integer i, n
+
+    if ( present ( sep ) ) then
+      sep_ = sep
+    else
+      sep_ = ','
+    end if
+    n = 0
+    do i = 1, len_trim(line)
+      if ( line(i:i) /= sep_ ) cycle
+      n = n + 1
+    end do
+  end function
 
   function count_cols ( u ) result ( ncols )
     integer, intent(in) :: u
