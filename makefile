@@ -11,5 +11,5 @@ test:
 	$(MKDIR_BUILD) && $(CMAKE) && ninja && ctest -VV
 
 clean:
-	rm -r build
+	rm -rf build
 	rm tags

@@ -16,7 +16,7 @@ module table_mo
   public :: count_rows, count_cols, count_seps
   public :: csv2parquet
 
-  integer,          parameter :: LEN_C = 255    ! Character length of each cell
+  integer,          parameter :: LEN_C = 23     ! Character length of each cell
   character(LEN_C), parameter :: cNA   = 'NA'   ! N/A data notation for character
   integer,          parameter :: iNA   = -999   ! N/A data notation for integer
   real,             parameter :: rNA   = -999.0 ! N/A data notation for integer
