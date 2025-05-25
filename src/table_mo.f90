@@ -899,44 +899,58 @@ contains
 
   end function get_csvline_from_cells
 
-  subroutine print_table ( this, n )
+  subroutine print_table ( this, n, len_cell )
 
     class(table_ty),   intent(in) :: this
     integer, optional, intent(in) :: n
+    integer, optional, intent(in) :: len_cell
+    integer                       :: len_cell_
+    integer, parameter            :: LEN_DEFAULT = 23 ! Timestamp + UTC
+    character(30)                 :: fmt_col, fmt_cell
     integer i, j
 
-    print *, repeat('=', LEN_C*this%ncols)
+    if ( present( len_cell ) ) then
+      len_cell_ = len_cell
+    else
+      len_cell_ = LEN_DEFAULT
+    end if
+
+    write ( fmt_col,  '(a, i0, a, i0, a)' ) "( ", this%ncols, "a", len_cell_, " )"
+    write ( fmt_cell, '(a, i0, a, i0, a)' ) "( ", this%ncols, "a", len_cell_, ", '... ', i0 )"
+    print *, 'fmt_cell: ', trim(fmt_cell)
+
+    print *, repeat('=', 79)
     if ( this%name /= '' ) print *, 'name : ', trim(this%name)
     if ( this%file /= '' ) print *, 'file : ', trim(this%file)
     print *, 'nrows:', this%nrows
     print *, 'ncols:', this%ncols
 
-    print *, repeat('=', LEN_C*this%ncols)
-    print *, [( this%colnames(j), j = 1, this%ncols )]
-    print *, repeat('-', LEN_C*this%ncols)
+    print *, repeat('=', 79)
+    print fmt_col, [( this%colnames(j), j = 1, this%ncols )]
+    print *, repeat('-', 79)
 
     if ( present( n ) ) then
       do i = 1, min(n, this%nrows)
-        print *, [( this%cell(i, j), j = 1, this%ncols )], i
+        print fmt_cell, [( this%cell(i, j), j = 1, this%ncols )], i
       end do
     else
       if ( this%nrows <= 15 ) then
         do i = 1, this%nrows
-          print *, [( this%cell(i, j), j = 1, this%ncols )], i
+          print fmt_cell, [( this%cell(i, j), j = 1, this%ncols )], i
         end do
       else
         do i = 1, 5
-          print *, [( this%cell(i, j), j = 1, this%ncols )], i
+          print fmt_cell, [( this%cell(i, j), j = 1, this%ncols )], i
         end do
         print *, ':'
         print *, ':'
         do i = this%nrows - 4, this%nrows
-          print *, [( this%cell(i, j), j = 1, this%ncols )], i
+          print fmt_cell, [( this%cell(i, j), j = 1, this%ncols )], i
         end do
       end if
     end if
 
-    print *, repeat('-', LEN_C*this%ncols)
+    print *, repeat('-', 79)
     print *, ''
 
   end subroutine print_table
