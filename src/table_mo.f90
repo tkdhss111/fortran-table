@@ -742,11 +742,12 @@ contains
 
   end subroutine csv2parquet
 
-  subroutine read_csv ( this, file )
+  subroutine read_csv ( this, file, stat )
 
-    class(table_ty), intent(inout) :: this
-    character(*),    intent(in)    :: file
-    character(LEN_C*100)           :: csvline
+    class(table_ty),   intent(inout) :: this
+    character(*),      intent(in)    :: file
+    integer, optional, intent(out)   :: stat
+    character(LEN_C*100)             :: csvline
     integer i, u, nrows, ncols
 
     open ( newunit = u, file = file, status = 'old' )
@@ -757,7 +758,8 @@ contains
     call this%init ( nrows = nrows, ncols = ncols, file = file )
 
     if ( nrows == 0 ) then
-      print *, '*** Warning: No record is available. file: '//trim(file)
+      print *, '[table_mo.f90:read_csv] *** Warning: No record is available. file: '//trim(file)
+      if ( present ( stat ) ) stat = 1
       return
     end if
 
@@ -769,8 +771,9 @@ contains
     do i = 1, nrows
       read ( u, '(a)' ) csvline
       if ( count_seps ( csvline ) + 1 /= ncols ) then
-        print *, '*** Error: Irregular number of columns in record.'
-        print *, 'Abort reading records.'
+        print *, '[table_mo.f90:read_csv] *** Error: Irregular number of columns in record.'
+        print *, '[table_mo.f90:read_csv] Abort reading records.'
+        if ( present ( stat ) ) stat = 2
         exit
       end if
       this%cell(i, :) = get_cells_from_csvline ( csvline )
@@ -1226,8 +1229,8 @@ contains
     logical                     :: lvals(table%nrows) 
     integer i
     if ( any( table%cell(:, col) == 'NA' ) ) then
-      print *, '*** Error: logical column shall not have NAs'
-      print *, 'Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
+      print *, '[table_mo.f90:to_logical_colindex] *** Error: logical column shall not have NAs'
+      print *, '[table_mo.f90:to_logical_colindex] Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
       stop 1
     end if
     do concurrent ( i = 1:table%nrows )
@@ -1242,8 +1245,8 @@ contains
     integer i, j
     j = findloc( adjustl(table%colnames), col, dim = 1 )
     if ( any( table%cell(:, j) == 'NA' ) ) then
-      print *, '*** Error: logical column shall not have NAs'
-      print *, 'Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
+      print *, '[table_mo.f90:to_logical_colname] *** Error: logical column shall not have NAs'
+      print *, '[table_mo.f90:to_logical_colname] Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
       stop 1
     end if
     do concurrent ( i = 1:table%nrows )
@@ -1259,8 +1262,8 @@ contains
     integer i
     cell = table%cell
     if ( any( cell(:, col) == 'NA' ) ) then
-      print *, '*** Warning: integer column has NAs'
-      print *, 'NAs are replaced by iNA(e.g., -999)'
+      print *, '[table_mo.f90:to_integer_colindex] *** Warning: integer column has NAs'
+      print *, '[table_mo.f90:to_integer_colindex] NAs are replaced by iNA(e.g., -999)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, col) == 'NA' ) then
           write ( cell(i, col), * ) iNA
@@ -1281,8 +1284,8 @@ contains
     cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
     if ( any( cell(:, j) == 'NA' ) ) then
-      print *, '*** Warning: integer column has NAs'
-      print *, 'NAs are replaced by iNA(e.g., -999)'
+      print *, '[table_mo.f90:to_integer_colname] *** Warning: integer column has NAs'
+      print *, '[table_mo.f90:to_integer_colname] NAs are replaced by iNA(e.g., -999)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, j) == 'NA' ) then
           write ( cell(i, j), * ) iNA
@@ -1302,8 +1305,8 @@ contains
     integer i
     cell = table%cell
     if ( any( cell(:, col) == 'NA' ) ) then
-      print *, '*** Warning: real column has NAs'
-      print *, 'NAs are replaced by rNA(e.g., -999.0)'
+      print *, '[table_mo.f90:to_real_colindex] *** Warning: real column has NAs'
+      print *, '[table_mo.f90:to_real_colindex] NAs are replaced by rNA(e.g., -999.0)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, col) == 'NA' ) then
           write ( cell(i, col), * ) rNA
@@ -1324,8 +1327,8 @@ contains
     cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
     if ( any( cell(:, j) == 'NA' ) ) then
-      print *, '*** Warning: real column has NAs'
-      print *, 'NAs are replaced by rNA(e.g., -999.0)'
+      print *, '[table_mo.f90:to_real_colname] *** Warning: real column has NAs'
+      print *, '[table_mo.f90:to_real_colname] NAs are replaced by rNA(e.g., -999.0)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, j) == 'NA' ) then
           write ( cell(i, j), * ) rNA
