@@ -749,14 +749,44 @@ contains
     integer, optional, intent(out)   :: stat
     character(LEN_C*100)             :: csvline
     character(255)                   :: iomsg
+    integer(8)                       :: size
+    logical                          :: exist
     integer i, u, nrows, ncols, iostat
+
+    if ( present ( stat ) ) stat = 0
+
+    inquire ( file = file, exist = exist, size = size )
+
+    if ( .not. exist ) then
+      print *, '[table_mo.f90:read_csv] *** Erorr: '//trim(file)//' does not exist.'
+      if ( present ( stat ) ) then
+        stat = 1
+        return
+      else
+        stop 1
+      end if
+    end if
+
+    if ( size < 2 ) then
+      print *, '[table_mo.f90:read_csv] *** Erorr: '//trim(file)//' exists, however, empty.'
+      if ( present ( stat ) ) then
+        stat = 1
+        return
+      else
+        stop 1
+      end if
+    end if
 
     open ( newunit = u, file = file, status = 'old', iomsg = iomsg, iostat = iostat )
 
     if ( iostat /= 0 ) then
       print *, '[table_mo.f90:read_csv] *** Erorr: '//trim(iomsg)
-      if ( present ( stat ) ) stat = 1
-      return
+      if ( present ( stat ) ) then
+        stat = 1
+        return
+      else
+        stop 1
+      end if
     end if
 
     nrows = count_rows ( u ) - 1
