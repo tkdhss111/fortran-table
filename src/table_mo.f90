@@ -16,7 +16,7 @@ module table_mo
   public :: count_rows, count_cols, count_seps
   public :: csv2parquet
 
-  integer,          parameter :: LEN_C = 23     ! Character length of each cell
+  integer,          parameter :: LEN_C = 23     ! Character length of each cell (N.B. care memory size)
   character(LEN_C), parameter :: cNA   = 'NA'   ! N/A data notation for character
   integer,          parameter :: iNA   = -999   ! N/A data notation for integer
   real,             parameter :: rNA   = -999.0 ! N/A data notation for integer
@@ -748,9 +748,16 @@ contains
     character(*),      intent(in)    :: file
     integer, optional, intent(out)   :: stat
     character(LEN_C*100)             :: csvline
-    integer i, u, nrows, ncols
+    character(255)                   :: iomsg
+    integer i, u, nrows, ncols, iostat
 
-    open ( newunit = u, file = file, status = 'old' )
+    open ( newunit = u, file = file, status = 'old', iomsg = iomsg, iostat = iostat )
+
+    if ( iostat /= 0 ) then
+      print *, '[table_mo.f90:read_csv] *** Erorr: '//trim(iomsg)
+      if ( present ( stat ) ) stat = 1
+      return
+    end if
 
     nrows = count_rows ( u ) - 1
     ncols = count_cols ( u )
@@ -759,7 +766,7 @@ contains
 
     if ( nrows == 0 ) then
       print *, '[table_mo.f90:read_csv] *** Warning: No record is available. file: '//trim(file)
-      if ( present ( stat ) ) stat = 1
+      if ( present ( stat ) ) stat = 2
       return
     end if
 
@@ -773,7 +780,7 @@ contains
       if ( count_seps ( csvline ) + 1 /= ncols ) then
         print *, '[table_mo.f90:read_csv] *** Error: Irregular number of columns in record.'
         print *, '[table_mo.f90:read_csv] Abort reading records.'
-        if ( present ( stat ) ) stat = 2
+        if ( present ( stat ) ) stat = 3
         exit
       end if
       this%cell(i, :) = get_cells_from_csvline ( csvline )
