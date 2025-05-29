@@ -15,6 +15,7 @@ module table_mo
   public :: get_cells_from_csvline, get_csvline_from_cells
   public :: count_rows, count_cols, count_seps
   public :: csv2parquet
+  public :: is_eq, is_numeric, round
 
   integer,          parameter :: LEN_C = 23     ! Character length of each cell (N.B. care memory size)
   character(LEN_C), parameter :: cNA   = 'NA'   ! N/A data notation for character
@@ -753,6 +754,8 @@ contains
     logical                          :: exist
     integer i, u, nrows, ncols, iostat
 
+    print *, '[read_csv] Note. the maximum length of column string: ', LEN_C
+
     if ( present ( stat ) ) stat = 0
 
     inquire ( file = file, exist = exist, size = size )
@@ -1457,5 +1460,45 @@ contains
      write ( table%cell(i, j), * ) vals(i)
     end do
   end subroutine from_real_colname
+
+  elemental pure logical function is_eq ( x, ref )
+    real, intent(in) :: x
+    real, intent(in) :: ref
+    is_eq = abs(x - ref) < epsilon(ref)
+  end function
+
+  elemental function is_numeric ( string )
+  !function is_numeric ( string )
+    CHARACTER(len=*), intent(in) :: string
+    character(len(string))       :: str
+    LOGICAL                      :: is_numeric
+    REAL                         :: x
+    integer                      :: e
+    !integer                      :: digit
+    !CHARACTER(len=12)            :: fmt
+    str = trim( adjustl(string) )
+    ! digit = len_trim(str)
+    ! BN: https://www.jamstec.go.jp/es/jp/simschool/f90learning/chap3/page3.html
+    ! Digits: n
+    x = -999.0
+    !write( fmt, '("(BN, F", I0, ".0)")' ) digit
+    read( str, *, iostat = e ) x
+    !print *, 'e:', e, 'string: ', trim(string)
+    !print *, 'digit: ', digit, ', fmt: ', fmt, ', value:', x
+    !is_numeric = e == 0 .and. digit /= 0
+    is_numeric = e == 0
+    !if ( is_numeric ) then
+    !  print *, 'is numeric: ', trim(string)
+    !else
+    !  print *, 'is NOT numeric: ', trim(string)
+    !end if
+  end function
+
+  pure elemental function round ( val, n ) result ( rx )
+    real,    intent(in) :: val
+    integer, intent(in) :: n
+    real :: rx
+    rx = anint(val*10.0**n)/10.0**n
+  end function
 
 end module
