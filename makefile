@@ -12,4 +12,4 @@ test:
 
 clean:
 	rm -rf build
-	rm tags
+	rm -f tags
