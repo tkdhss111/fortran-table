@@ -429,7 +429,7 @@ contains
     type(table_ty),  intent(in) :: table2
     type(table_ty)              :: table3
     logical                     :: found
-    integer i, j, k, i1, i2, j1, j2, nrows
+    integer k, i1, i2, j1, j2, nrows
 
     ! Find key columns
     j1 = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
@@ -759,7 +759,7 @@ contains
     logical                          :: exist
     integer i, u, nrows, ncols, iostat
 
-    print *, '[table_mo.f90:read_csv] Note. the maximum length of column string: ', LEN_C
+    !print *, '[table_mo.f90:read_csv] Note. the maximum length of column string: ', LEN_C
 
     if ( present ( stat ) ) stat = 0
 
