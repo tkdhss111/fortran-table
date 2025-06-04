@@ -429,13 +429,11 @@ contains
     type(table_ty),  intent(in) :: table2
     type(table_ty)              :: table3
     logical                     :: found
-    integer i, i1, i2, j1, j2, u, nrows
+    integer i, j, k, i1, i2, j1, j2, nrows
 
     ! Find key columns
     j1 = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
     j2 = findloc( adjustl(table2%colnames), table2%key, dim = 1 )
-
-    open ( newunit = u, status = 'scratch', form = 'unformatted' )
 
     associate ( key1 => table1%cell(:, j1), &
                 key2 => table2%cell(:, j2) )
@@ -447,18 +445,12 @@ contains
         if ( key1(i1) == key2(i2) ) then
           nrows = nrows + 1
           found = .true.
-          write ( u ) table1%cell(i1, :), table2%cell(i2, :) 
         end if
       end do
       if ( .not. found ) then
         nrows = nrows + 1
-        write ( u ) table1%cell(i1, :), repeat( cNA, table2%ncols )
       end if
     end do
-
-    end associate
-
-    rewind ( u )
 
     call table3%init ( nrows    = nrows,                                &
                        ncols    = table1%ncols + table2%ncols,          &
@@ -466,12 +458,25 @@ contains
                        name     = table1%name,                          &
                        key      = table1%key,                           &
                        file     = table1%file )
+    table3%cell = 'NA'
 
-    do i = 1, table3%nrows
-      read ( u ) table3%cell(i, :)
+    k = 1
+    do i1 = 1, table1%nrows
+      found = .false.
+      do i2 = 1, table2%nrows
+        if ( key1(i1) == key2(i2) ) then
+          found = .true.
+          table3%cell(k, :) = [ table1%cell(i1, :), table2%cell(i2, :) ]
+          k = k + 1
+        end if
+      end do
+      if ( .not. found ) then
+        table3%cell(k, 1:table1%ncols) = table1%cell(i1, 1:table1%ncols)
+        k = k + 1
+      end if
     end do
 
-    close ( u )
+    end associate
 
   end function
 
@@ -754,7 +759,7 @@ contains
     logical                          :: exist
     integer i, u, nrows, ncols, iostat
 
-    print *, '[read_csv] Note. the maximum length of column string: ', LEN_C
+    print *, '[table_mo.f90:read_csv] Note. the maximum length of column string: ', LEN_C
 
     if ( present ( stat ) ) stat = 0
 
@@ -812,7 +817,11 @@ contains
       read ( u, '(a)' ) csvline
       if ( count_seps ( csvline ) + 1 /= ncols ) then
         print *, '[table_mo.f90:read_csv] *** Error: Irregular number of columns in record.'
+        print *, '[table_mo.f90:read_csv] Filename: ', trim(file)
+        print *, '[table_mo.f90:read_csv] # of delimiters: ', count_seps ( csvline )
+        print *, '[table_mo.f90:read_csv] # of columns: ', ncols
         print *, '[table_mo.f90:read_csv] Abort reading records.'
+        print *, 'Line #: ', i, ', Record: ', trim(csvline)
         if ( present ( stat ) ) stat = 3
         exit
       end if
@@ -1195,9 +1204,9 @@ contains
   end subroutine sort_integer8
 
   pure recursive subroutine sort_integer4 ( a, ii, low, high )
-    integer, intent(inout) :: a(:)  ! The array to be sorted
-    integer, intent(inout) :: ii(:) ! The indices to track sorted order
-    integer, intent(in)    :: low, high
+    integer(4), intent(inout) :: a(:)  ! The array to be sorted
+    integer,    intent(inout) :: ii(:) ! The indices to track sorted order
+    integer,    intent(in)    :: low, high
     integer i, pivot
     if ( low < high ) then
       call partition ( a, ii, low, high, pivot )
@@ -1213,10 +1222,10 @@ contains
     end if
   contains
     pure subroutine partition ( a, ii, low, high, pivot )
-      integer, intent(inout) :: a(:)      ! The array to partition
-      integer, intent(inout) :: ii(:)     ! The indices array
-      integer, intent(in)    :: low, high ! The range of the array
-      integer, intent(out)   :: pivot     ! The pivot index
+      integer(4), intent(inout) :: a(:)      ! The array to partition
+      integer,    intent(inout) :: ii(:)     ! The indices array
+      integer,    intent(in)    :: low, high ! The range of the array
+      integer,    intent(out)   :: pivot     ! The pivot index
       integer                :: pivot_value, tmp_a
       integer i, j, tmp_ii
       pivot_value = a(high)
