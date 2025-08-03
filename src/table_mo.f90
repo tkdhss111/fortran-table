@@ -14,7 +14,7 @@ module table_mo
   public :: sort_integer, sort_character
   public :: get_cells_from_csvline, get_csvline_from_cells
   public :: count_rows, count_cols, count_seps
-  public :: csv2parquet
+  public :: read_csv, csv2parquet
   public :: is_eq, is_numeric, round
 
   integer,          parameter :: LEN_C = 23     ! Character length of each cell (N.B. care memory size)
@@ -167,7 +167,7 @@ contains
 
     jj = [( j, j = 1, size(cols) )]
 
-    table_ = select_integer ( table, pack( jj, cols ) )
+    table_ = select_integer( table, pack( jj, cols ) )
 
   end function
 
@@ -183,7 +183,7 @@ contains
       jj(j) = findloc( adjustl(table%colnames), cols(j), dim = 1 )
     end do
 
-    table_ = select_integer ( table, jj )
+    table_ = select_integer( table, jj )
 
   end function
 
@@ -196,7 +196,7 @@ contains
     integer,         intent(in) :: rows(:)
     type(table_ty)              :: table_
 
-    call table_%init (                 &
+    call table_%init(                 &
       nrows    = size(rows),           &
       ncols    = table%ncols,          &
       rownames = table%rownames(rows), &
@@ -218,7 +218,7 @@ contains
 
     ii = [( i, i = 1, size(rows) )]
 
-    table_ = filter_integer ( table, pack( ii, rows ) )
+    table_ = filter_integer( table, pack( ii, rows ) )
 
   end function
 
@@ -234,7 +234,7 @@ contains
       ii(i) = findloc( adjustl(table%rownames), rows(i), dim = 1 )
     end do
 
-    table_ = filter_integer ( table, ii )
+    table_ = filter_integer( table, ii )
 
   end function
 
@@ -261,7 +261,7 @@ contains
       end if
     end do
 
-    table_ = filter_logical ( table, ll )
+    table_ = filter_logical( table, ll )
 
   end function
 
@@ -275,7 +275,7 @@ contains
 
     ii = [( i, i = 1, size(rows) )]
 
-    table_ = delete_integer ( table, pack( ii, rows ) )
+    table_ = delete_integer( table, pack( ii, rows ) )
 
   end function
 
@@ -291,7 +291,7 @@ contains
       ii(i) = findloc( adjustl(table%rownames), rows(i), dim = 1 )
     end do
 
-    table_ = delete_integer ( table, ii )
+    table_ = delete_integer( table, ii )
 
   end function
 
@@ -328,7 +328,7 @@ contains
       before_ = table%ncols + 1
     end if
 
-    call table_%init (            &
+    call table_%init(            &
       nrows    = table%nrows,     &
       ncols    = table%ncols + 1, &
       rownames = table%rownames,  &
@@ -452,12 +452,12 @@ contains
       end if
     end do
 
-    call table3%init ( nrows    = nrows,                                &
-                       ncols    = table1%ncols + table2%ncols,          &
-                       colnames = [ table1%colnames, table2%colnames ], &
-                       name     = table1%name,                          &
-                       key      = table1%key,                           &
-                       file     = table1%file )
+    call table3%init( nrows    = nrows,                                &
+                      ncols    = table1%ncols + table2%ncols,          &
+                      colnames = [ table1%colnames, table2%colnames ], &
+                      name     = table1%name,                          &
+                      key      = table1%key,                           &
+                      file     = table1%file )
     table3%cell = 'NA'
 
     k = 1
@@ -487,7 +487,7 @@ contains
     type(table_ty)              :: table3_
     type(table_ty)              :: table3
 
-    table3 = left_join ( table2, table1 )
+    table3 = left_join( table2, table1 )
 
     table3_ = table3
 
@@ -526,12 +526,12 @@ contains
 
     end associate
 
-    call table3%init ( nrows    = count(matches),                       &
-                       ncols    = table1%ncols + table2%ncols,          &
-                       colnames = [ table1%colnames, table2%colnames ], &
-                       name     = table1%name,                          &
-                       key      = table1%key,                           &
-                       file     = table1%file )
+    call table3%init( nrows    = count(matches),                       &
+                      ncols    = table1%ncols + table2%ncols,          &
+                      colnames = [ table1%colnames, table2%colnames ], &
+                      name     = table1%name,                          &
+                      key      = table1%key,                           &
+                      file     = table1%file )
     k = 0
     do i1 = 1, table1%nrows
       do i2 = 1, table2%nrows
@@ -573,12 +573,12 @@ contains
 
     end associate
 
-    call table3%init ( nrows    = count(matches) + table1%nrows,        &
-                       ncols    = table1%ncols + table2%ncols,          &
-                       colnames = [ table1%colnames, table2%colnames ], &
-                       name     = table1%name,                          &
-                       key      = table1%key,                           &
-                       file     = table1%file )
+    call table3%init( nrows    = count(matches) + table1%nrows,        &
+                      ncols    = table1%ncols + table2%ncols,          &
+                      colnames = [ table1%colnames, table2%colnames ], &
+                      name     = table1%name,                          &
+                      key      = table1%key,                           &
+                      file     = table1%file )
     k = 0
     do i1 = 1, table1%nrows
       found = .false.
@@ -627,12 +627,12 @@ contains
     type(table_ty),  intent(in) :: table2
     type(table_ty)              :: table3
 
-    call table3%init ( nrows    = table1%nrows + table2%nrows, &
-                       ncols    = table1%ncols,                &
-                       colnames = table1%colnames,             &
-                       name     = table1%name,                 &
-                       key      = table1%key,                  &
-                       file     = table1%file )
+    call table3%init( nrows    = table1%nrows + table2%nrows, &
+                      ncols    = table1%ncols,                &
+                      colnames = table1%colnames,             &
+                      name     = table1%name,                 &
+                      key      = table1%key,                  &
+                      file     = table1%file )
 
     table3%cell(1:table1%nrows,  :) = table1%cell
     table3%cell(table1%nrows+1:, :) = table2%cell
@@ -653,12 +653,12 @@ contains
     associate ( key1 => table1%cell(:, j_key), &
                 key2 => table2%cell(:, j_key) )
 
-    call table3%init ( nrows    = size(union ( key1, key2 )), &
-                       ncols    = table1%ncols,               &
-                       colnames = table1%colnames,            &
-                       name     = table1%name,                &
-                       key      = table1%key,                 &
-                       file     = table1%file )
+    call table3%init( nrows    = size(union ( key1, key2 )), &
+                      ncols    = table1%ncols,               &
+                      colnames = table1%colnames,            &
+                      name     = table1%name,                &
+                      key      = table1%key,                 &
+                      file     = table1%file )
 
     table3%cell(1:table1%nrows, :) = table1%cell
 
@@ -698,10 +698,10 @@ contains
 
     open ( newunit = u, file = file, status = 'unknown' )
 
-    write ( u, '(a)' ) get_csvline_from_cells ( this%colnames )
+    write ( u, '(a)' ) get_csvline_from_cells( this%colnames )
 
     do i = 1, this%nrows
-      write ( u, '(a)' ) get_csvline_from_cells ( this%cell(i, :) )
+      write ( u, '(a)' ) get_csvline_from_cells( this%cell(i, :) )
     end do
 
     close ( u )
@@ -716,17 +716,17 @@ contains
     logical, optional           :: print
     logical                     :: print_
 
-    if ( present ( print ) ) then
+    if ( present( print ) ) then
       print_ = print
     else
       print_ = .false.
     end if
 
     csv = file(1:len_trim(file)-8)//'.csv'
-    call write_csv ( this, csv )
-    call csv2parquet ( csv, file )
+    call write_csv( this, csv )
+    call csv2parquet( csv, file )
     if ( print_ ) then
-      call execute_command_line ( 'duckdb -c "SELECT * FROM '//"'"//trim(file)//"'"//'"' )
+      call execute_command_line( 'duckdb -c "SELECT * FROM '//"'"//trim(file)//"'"//'"' )
     end if
 
   end subroutine write_parquet
@@ -744,7 +744,7 @@ contains
           "', auto_type_candidates = ['BOOLEAN', 'BIGINT', 'DOUBLE', 'VARCHAR'])) TO '"//&
           trim(parquet)//"' (FORMAT 'parquet')"
     !print *, 'query: ', trim(query)
-    call execute_command_line ( 'duckdb -c "'//trim(query)//'"' )
+    call execute_command_line( 'duckdb -c "'//trim(query)//'"' )
 
   end subroutine csv2parquet
 
@@ -761,27 +761,27 @@ contains
 
     !print *, '[table_mo.f90:read_csv] Note. the maximum length of column string: ', LEN_C
 
-    if ( present ( stat ) ) stat = 0
+    if ( present( stat ) ) stat = 0
 
-    inquire ( file = file, exist = exist, size = size )
+    inquire( file = file, exist = exist, size = size )
 
     if ( .not. exist ) then
       print *, '[table_mo.f90:read_csv] *** Erorr: '//trim(file)//' does not exist.'
-      if ( present ( stat ) ) then
+      if ( present( stat ) ) then
         stat = 1
         return
       else
-        stop 1
+        error stop 1
       end if
     end if
 
     if ( size < 2 ) then
       print *, '[table_mo.f90:read_csv] *** Erorr: '//trim(file)//' exists, however, empty.'
-      if ( present ( stat ) ) then
+      if ( present( stat ) ) then
         stat = 1
         return
       else
-        stop 1
+        error stop 1
       end if
     end if
 
@@ -789,43 +789,51 @@ contains
 
     if ( iostat /= 0 ) then
       print *, '[table_mo.f90:read_csv] *** Erorr: '//trim(iomsg)
-      if ( present ( stat ) ) then
+      if ( present( stat ) ) then
         stat = 1
         return
       else
-        stop 1
+        error stop 1
       end if
     end if
 
-    nrows = count_rows ( u ) - 1
-    ncols = count_cols ( u )
+    nrows = count_rows( u ) - 1
+    ncols = count_cols( u )
 
-    call this%init ( nrows = nrows, ncols = ncols, file = file )
+    print *, 'nrows: ', nrows
+    print *, 'ncols: ', ncols
+    if ( nrows < 1 ) then
+      print *, '*** Error: no record found'
+    end if
+
+    call this%init( nrows = nrows, ncols = ncols, file = file )
 
     if ( nrows == 0 ) then
       print *, '[table_mo.f90:read_csv] *** Warning: No record is available. file: '//trim(file)
-      if ( present ( stat ) ) stat = 2
+      if ( present( stat ) ) stat = 2
       return
     end if
 
     ! Colnames
     read ( u, '(a)' ) csvline
-    this%colnames = get_cells_from_csvline ( csvline )
+    print *, 'colnames: ', trim(csvline)
+    this%colnames = get_cells_from_csvline( csvline )
 
     ! Records
     do i = 1, nrows
       read ( u, '(a)' ) csvline
-      if ( count_seps ( csvline ) + 1 /= ncols ) then
+!      print *, 'csvline: ', trim(csvline)
+      if ( count_seps( csvline ) + 1 /= ncols ) then
         print *, '[table_mo.f90:read_csv] *** Error: Irregular number of columns in record.'
         print *, '[table_mo.f90:read_csv] Filename: ', trim(file)
-        print *, '[table_mo.f90:read_csv] # of delimiters: ', count_seps ( csvline )
+        print *, '[table_mo.f90:read_csv] # of delimiters: ', count_seps( csvline )
         print *, '[table_mo.f90:read_csv] # of columns: ', ncols
         print *, '[table_mo.f90:read_csv] Abort reading records.'
         print *, 'Line #: ', i, ', Record: ', trim(csvline)
-        if ( present ( stat ) ) stat = 3
+        if ( present( stat ) ) stat = 3
         exit
       end if
-      this%cell(i, :) = get_cells_from_csvline ( csvline )
+      this%cell(i, 1:ncols) = get_cells_from_csvline( csvline )
     end do
 
     close ( u )
@@ -838,7 +846,7 @@ contains
     character(1)                       :: sep_
     integer i, n
 
-    if ( present ( sep ) ) then
+    if ( present( sep ) ) then
       sep_ = sep
     else
       sep_ = ','
@@ -856,7 +864,7 @@ contains
     integer             :: iostat
     character(1)        :: chr
     ncols = 1
-    rewind ( u )
+    rewind( u )
     do
       read ( u, '(a1)', advance = 'no', eor = 10, iostat = iostat ) chr
       if ( iostat /= 0 ) then
@@ -865,7 +873,7 @@ contains
       end if
       if ( chr == ',' ) ncols = ncols + 1
     end do
-    10 rewind(u)
+    10 rewind( u )
   end function count_cols
 
   function count_rows ( u ) result ( nrows )
@@ -882,7 +890,7 @@ contains
       end if
       nrows = nrows + 1
     end do
-    10 rewind ( u )
+    10 rewind( u )
   end function count_rows
 
   pure function get_cells_from_csvline ( csvline ) result ( cells ) 
@@ -896,7 +904,7 @@ contains
 
     if ( len_line == 0 ) return
 
-    allocate ( p(len_line) ) ! Max: all commas in a line
+    allocate( p(len_line) ) ! Max: all commas in a line
 
     ! Get positions of commas in a line
     nc = 0
@@ -906,14 +914,14 @@ contains
       p(nc) = i
     end do
 
-    if ( allocated ( cells ) ) deallocate ( cells )
+    if ( allocated( cells ) ) deallocate( cells )
 
     if ( nc == 0 ) then
-      allocate ( cells(1) )
+      allocate( cells(1) )
       cells = trim(csvline)
       return
     else
-      allocate ( cells(nc + 1) )
+      allocate( cells(nc + 1) )
     end if
 
     ! Fetch a string between commas
@@ -937,7 +945,7 @@ contains
     character(:), allocatable          :: csvline
     integer j
 
-    if ( present ( sep ) ) then
+    if ( present( sep ) ) then
       sep_ = sep
     else
       sep_ = ','
@@ -1062,7 +1070,7 @@ contains
     n1 = size(set1)
     n2 = size(set2)
 
-    allocate ( dup(n2), source = .false. )
+    allocate( dup(n2), source = .false. )
 
     do concurrent ( i2 = 1:n2 )
       do concurrent ( i1 = 1:n1 )
@@ -1072,15 +1080,15 @@ contains
       end do
     end do
 
-    ndups = count ( dup )
+    ndups = count( dup )
 
     if ( ndups == 0 ) then
       cup = [ set1, set2 ]
     else
       n = n1 + n2 - ndups
-      allocate ( cup(n) )
+      allocate( cup(n) )
       cup(1:n1) = set1
-      cup(n1+1:n) = pack ( set2, .not. dup )
+      cup(n1+1:n) = pack( set2, .not. dup )
     end if
 
   end function union
@@ -1113,7 +1121,7 @@ contains
 
     else ! set2 is smaller
 
-      allocate ( duplicated(n2), source = .false. )
+      allocate( duplicated(n2), source = .false. )
 
       do concurrent ( i2 = 1:n2 )
         do i1 = 1, n1
@@ -1151,7 +1159,7 @@ contains
       read ( str, * ) a(i)
     end do
 
-    call sort_integer8 ( a, ii, 1, size(a) )
+    call sort_integer8( a, ii, 1, size(a) )
 
   end subroutine sort_character
 
@@ -1161,14 +1169,14 @@ contains
     integer,    intent(in)    :: low, high
     integer i, pivot
     if ( low < high ) then
-      call partition ( a, ii, low, high, pivot )
+      call partition( a, ii, low, high, pivot )
       ! Sort the partitions concurrently
       do concurrent ( i = 1:2 )
         select case ( i )
         case ( 1 )
-          call sort_integer8 ( a, ii, low, pivot - 1 )
+          call sort_integer8( a, ii, low, pivot - 1 )
         case ( 2 )
-          call sort_integer8 ( a, ii, pivot + 1, high )
+          call sort_integer8( a, ii, pivot + 1, high )
         end select
       end do
     end if
@@ -1209,14 +1217,14 @@ contains
     integer,    intent(in)    :: low, high
     integer i, pivot
     if ( low < high ) then
-      call partition ( a, ii, low, high, pivot )
+      call partition( a, ii, low, high, pivot )
       ! Sort the partitions concurrently
       do concurrent ( i = 1:2 )
         select case ( i )
         case ( 1 )
-          call sort_integer4 ( a, ii, low, pivot - 1 )
+          call sort_integer4( a, ii, low, pivot - 1 )
         case ( 2 )
-          call sort_integer4 ( a, ii, pivot + 1, high )
+          call sort_integer4( a, ii, pivot + 1, high )
         end select
       end do
     end if
@@ -1280,7 +1288,7 @@ contains
     if ( any( table%cell(:, col) == 'NA' ) ) then
       print *, '[table_mo.f90:to_logical_colindex] *** Error: logical column shall not have NAs'
       print *, '[table_mo.f90:to_logical_colindex] Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
-      stop 1
+      error stop 1
     end if
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, col), * ) lvals(i)
@@ -1296,7 +1304,7 @@ contains
     if ( any( table%cell(:, j) == 'NA' ) ) then
       print *, '[table_mo.f90:to_logical_colname] *** Error: logical column shall not have NAs'
       print *, '[table_mo.f90:to_logical_colname] Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
-      stop 1
+      error stop 1
     end if
     do concurrent ( i = 1:table%nrows )
       read ( table%cell(i, j), * ) lvals(i)
@@ -1491,7 +1499,7 @@ contains
     ! Digits: n
     x = -999.0
     !write( fmt, '("(BN, F", I0, ".0)")' ) digit
-    read( str, *, iostat = e ) x
+    read ( str, *, iostat = e ) x
     !print *, 'e:', e, 'string: ', trim(string)
     !print *, 'digit: ', digit, ', fmt: ', fmt, ', value:', x
     !is_numeric = e == 0 .and. digit /= 0
