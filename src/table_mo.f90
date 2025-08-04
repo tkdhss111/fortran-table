@@ -652,6 +652,11 @@ contains
     ! Find key columns (shall be the same column index for both tables)
     j_key = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
 
+    !if ( j_key == 0 ) then
+    !  print *, '*** Errro: table1 key', trim(table1%key), ' not found in colnames: ', table1%colnames
+    !end if
+    ! If key is not found, then the following error occurs:
+    ! Subscript #2 of the array CELL has value 0 which is less than the lower bound of 1
     associate ( key1 => table1%cell(:, j_key), &
                 key2 => table2%cell(:, j_key) )
 
@@ -802,8 +807,8 @@ contains
     nrows = count_rows( u ) - 1
     ncols = count_cols( u )
 
-    print *, 'nrows: ', nrows
-    print *, 'ncols: ', ncols
+!    print *, 'nrows: ', nrows
+!    print *, 'ncols: ', ncols
     if ( nrows < 1 ) then
       print *, '*** Error: no record found'
     end if
@@ -818,8 +823,9 @@ contains
 
     ! Colnames
     read ( u, '(a)' ) csvline
-    print *, 'colnames: ', trim(csvline)
+!    print *, 'colnames: ', trim(csvline)
     this%colnames = get_cells_from_csvline( csvline )
+    this%key = this%colnames(1)
 
     ! Records
     do i = 1, nrows
@@ -979,7 +985,7 @@ contains
 
     write ( fmt_col,  '(a, i0, a, i0, a)' ) "( ", this%ncols, "a", len_cell_, " )"
     write ( fmt_cell, '(a, i0, a, i0, a)' ) "( ", this%ncols, "a", len_cell_, ", '... ', i0 )"
-    print *, 'fmt_cell: ', trim(fmt_cell)
+!    print *, 'fmt_cell: ', trim(fmt_cell)
 
     print *, repeat('=', 79)
     if ( this%name /= '' ) print *, 'name : ', trim(this%name)
