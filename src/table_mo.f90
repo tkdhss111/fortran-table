@@ -28,7 +28,7 @@ module table_mo
     integer                       :: ncols = 0
     character(LEN_C), allocatable :: rownames(:), colnames(:)
     character(LEN_C), allocatable :: cell(:, :)
-    character(LEN_C)              :: key  = 'key'
+    character(LEN_C)              :: key  = ''
     character(255)                :: name, file
 
   contains
@@ -89,13 +89,13 @@ contains
     character(*),    optional, intent(in)    :: rownames(:), colnames(:)
     character(*),    optional, intent(in)    :: name, key, file
 
-    if ( allocated( this%rownames ) ) deallocate ( this%rownames )
-    if ( allocated( this%colnames ) ) deallocate ( this%colnames )
-    if ( allocated( this%cell     ) ) deallocate ( this%cell     )
+    if ( allocated( this%rownames ) ) deallocate( this%rownames )
+    if ( allocated( this%colnames ) ) deallocate( this%colnames )
+    if ( allocated( this%cell     ) ) deallocate( this%cell     )
 
-    allocate ( this%rownames(nrows) )
-    allocate ( this%colnames(ncols) )
-    allocate ( this%cell(nrows, ncols) )
+    allocate( this%rownames(nrows) )
+    allocate( this%colnames(ncols) )
+    allocate( this%cell(nrows, ncols) )
 
     this%nrows = nrows
     this%ncols = ncols
@@ -126,6 +126,8 @@ contains
 
     if ( present( key ) ) then
       this%key = key
+    else
+      this%key = this%colnames(1)
     end if
 
     if ( present( file ) ) then
@@ -196,7 +198,7 @@ contains
     integer,         intent(in) :: rows(:)
     type(table_ty)              :: table_
 
-    call table_%init(                 &
+    call table_%init(                  &
       nrows    = size(rows),           &
       ncols    = table%ncols,          &
       rownames = table%rownames(rows), &

@@ -24,7 +24,7 @@ call table%init (                          &
     rownames = [ "row1", "row2", "row3" ], &
     colnames = [ "col1", "col2", "col3" ], &
     cell     = mydata,                     &
-    key      = 'key',                      &
+    key      = 'datetime',                 &
     name     = "mytable",                  &
     file     = "mytable.csv" )
 ```
@@ -32,79 +32,79 @@ call table%init (                          &
 ## Select
 
 ```
-table1 = select ( table, cols ) 
+table1 = select( table, cols )
 ```
 or
 ```
-table1 = table%select( cols ) 
+table1 = table%select( cols )
 ```
 
-**cols** shall be column names / indices / logical vector 
+**cols** shall be column names / indices / logical vector
 
 ```
-table1 = select ( table, [ "col3", "col2" ] )
-```
-
-```
-table1 = select ( table, [ 3, 2 ] ) 
+table1 = select( table, [ "col3", "col2" ] )
 ```
 
 ```
-table1 = select ( table, [ .false., .true., .false. ] ) 
+table1 = select( table, [ 3, 2 ] )
+```
+
+```
+table1 = select( table, [ .false., .true., .false. ] )
 ```
 
 ## Filter
 
 ```
-table1 = filter ( table, rows ) 
+table1 = filter( table, rows )
 ```
 or
 ```
-table1 = table%filter( rows ) 
+table1 = table%filter( rows )
 ```
 
 **rows** shall be row names / indices / logical vector 
 
 ```
-table1 = filter ( table, [ "row3", "row1" ] )
+table1 = filter( table, [ "row3", "row1" ] )
 ```
 
 ```
-table1 = filter ( table, [ 3, 2 ] )
+table1 = filter( table, [ 3, 2 ] )
 ```
 
 ```
-table1 = filter ( table, [ .true., .false., .true. ] )
+table1 = filter( table, [ .true., .false., .true. ] )
 ```
 
 ## Delete
 
 ```
-table1 = delete ( table, rows ) 
+table1 = delete( table, rows )
 ```
 or
 ```
-table1 = table%delete( rows ) 
+table1 = table%delete( rows )
 ```
 
 **rows** shall be row names / indices / logical vector 
 
 ```
-table1 = delete ( table, [ "row3", "row1" ] )
+table1 = delete( table, [ "row3", "row1" ] )
 ```
 
 ```
-table1 = delete ( table, [ 3, 2 ] )
+table1 = delete( table, [ 3, 2 ] )
 ```
 
 ```
-table1 = delete ( table, [ .true., .false., .true. ] )
+table1 = delete( table, [ .true., .false., .true. ] )
 ```
 
 ## Insert Column
 
 ```
-table1 = table%insert_col ( x, before, colname ) 
+table1 = table%insert_col( x, before, colname ) 
 ```
 
 **x** shall be character / logical / integer / real vector for new column
@@ -120,21 +120,21 @@ key in each table is used for matching
 ### Inner Join
 
 ```
-table3 = inner_join ( table1, table2 )
+table3 = inner_join( table1, table2 )
 ```
 or
 ```
-table3 = table1%inner_join ( table2 )
+table3 = table1%inner_join( table2 )
 ```
 
 ### Left Join
 
 ```
-table3 = left_join ( table1, table2 )
+table3 = left_join( table1, table2 )
 ```
 or
 ```
-table3 = table1%left_join ( table2 )
+table3 = table1%left_join( table2 )
 ```
 or
 ```
@@ -144,11 +144,11 @@ table3 = table1 * table2
 ### Right Join
 
 ```
-table3 = right_join ( table1, table2 )
+table3 = right_join( table1, table2 )
 ```
 or
 ```
-table3 = table1%right_join ( table2 )
+table3 = table1%right_join( table2 )
 ```
 
 ## Record Insertion
@@ -156,15 +156,15 @@ table3 = table1%right_join ( table2 )
 ### Insert or Replace
 
 In the following example, 
-if a record with the same key exits in table1, then it is replaced by the corresponding record in table2.
+if a record with the same key exits in table1, then it is replaced by the corresponding record in table2. The first column is used for the key if not specified.
 If there is no matching key in table1, then the record of table2 is appended to table1.
 
 ```
-table3 = insert_or_replace ( table1, table2 )
+table3 = insert_or_replace( table1, table2 )
 ```
 or
 ```
-table3 = table1%insert_or_replace ( table2 )
+table3 = table1%insert_or_replace( table2 )
 ```
 or
 ```
@@ -178,11 +178,11 @@ Simple appending with no sorting of the two tables with the same columns
 In the following example, table2 is appended to the end of table1.
 
 ```
-table3 = append ( table1, table2 )
+table3 = append( table1, table2 )
 ```
 or
 ```
-table3 = table1%append ( table2 )
+table3 = table1%append( table2 )
 ```
 
 ## CSV File I/O
@@ -190,19 +190,19 @@ table3 = table1%append ( table2 )
 Write CSV file:
 
 ```
-call table%write_csv ( file = "mytable.csv" )
+call table%write_csv( file = "mytable.csv" )
 ```
 
 Read CSV file:
 
 ```
-call table%read_csv  ( file = "mytable.csv" )
+call table%read_csv( file = "mytable.csv" )
 ```
 
 Write Parquet file:
 
 ```
-call table%write_parquet ( file = "mytable.parquet" )
+call table%write_parquet( file = "mytable.parquet" )
 ```
 
 ## Column Converter
@@ -210,7 +210,7 @@ call table%write_parquet ( file = "mytable.parquet" )
 ### Table column (character) -> {character, logical, integer, real} vector
 
 ```
-values = table%to_{character, logical, integer, real} ( col )
+values = table%to_{character, logical, integer, real}( col )
 ```
 
 **col** shall be integer or character
@@ -218,26 +218,26 @@ values = table%to_{character, logical, integer, real} ( col )
 ```
 logical, allocatable :: logical_values(:)
 
-logical_values = table%to_logical ( col = 2 )
+logical_values = table%to_logical( col = 2 )
 
 ```
 or
 ```
-logical_values = table%to_logical ( col = "col2" )
+logical_values = table%to_logical( col = "col2" )
 ```
 
 ### {character, logical, integer, real} vector -> Table column (character)
 
 ```
-call table%from_{character, logical, integer, real} ( vals, col )
+call table%from_{character, logical, integer, real}( vals, col )
 ```
 
 **col** shall be integer or character
 
 ```
-call table%from_logical ( logical_values, col = 2 )
+call table%from_logical( logical_values, col = 2 )
 ```
 or
 ```
-call table%from_logical ( logical_values, col = "col2" )
+call table%from_logical( logical_values, col = "col2" )
 ```
