@@ -503,8 +503,8 @@ program unit_test_table_mo
   print *, 'Test C-1: Get index of row / col'
   print *, '-----------------------------------------'
 
-  print *, 'Index of row:', table%index_row( row = 'row2' )
-  print *, 'Index of col:', table%index_col( col = 'col3' )
+  print *, 'Index of row:', table%row( 'row2' )
+  print *, 'Index of col:', table%col( 'col3' )
 
   print *, '-----------------------------------------'
   print *, 'Test C-2: Union of 2 sets'

@@ -32,7 +32,7 @@ module table_mo
     character(255)                :: name, file
 
   contains
-    procedure :: index_row, index_col
+    procedure :: row, col
     procedure :: init  => init_table
     procedure :: select_integer, select_logical, select_character
     generic   :: select => select_integer, select_logical, select_character
@@ -1026,17 +1026,17 @@ contains
   !==============================================
   ! Utility Functions
   !
-  pure integer function index_row ( this, row )
+  pure integer function row ( this, name )
     class(table_ty), intent(in) :: this
-    character(*),    intent(in) :: row
-    index_row = findloc( this%rownames, row, dim = 1 )
-  end function index_row
+    character(*),    intent(in) :: name
+    row = findloc( this%rownames, name, dim = 1 )
+  end function row
 
-  pure integer function index_col ( this, col )
+  pure integer function col ( this, name )
     class(table_ty), intent(in) :: this
-    character(*),    intent(in) :: col
-    index_col = findloc( this%colnames, col, dim = 1 )
-  end function index_col
+    character(*),    intent(in) :: name
+    col = findloc( this%colnames, name, dim = 1 )
+  end function col
 
 !  pure function union ( set1, set2 ) result ( cup )
 !
