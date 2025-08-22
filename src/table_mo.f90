@@ -1293,7 +1293,7 @@ contains
     integer,         intent(in) :: col
     logical                     :: lvals(table%nrows) 
     integer i
-    if ( any( table%cell(:, col) == 'NA' ) ) then
+    if ( any( table%cell(:, col) == 'NA' .or. table%cell(:, col) == '' ) ) then
       print *, '[table_mo.f90:to_logical_colindex] *** Error: logical column shall not have NAs'
       print *, '[table_mo.f90:to_logical_colindex] Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
       error stop 1
@@ -1309,7 +1309,7 @@ contains
     logical                     :: lvals(table%nrows) 
     integer i, j
     j = findloc( adjustl(table%colnames), col, dim = 1 )
-    if ( any( table%cell(:, j) == 'NA' ) ) then
+    if ( any( table%cell(:, j) == 'NA' ) .or. any( table%cell(:, j) == '' ) ) then
       print *, '[table_mo.f90:to_logical_colname] *** Error: logical column shall not have NAs'
       print *, '[table_mo.f90:to_logical_colname] Consider using integer as 0: .false., 1: .true. and NA: iNA(e.g., -999)'
       error stop 1
@@ -1326,11 +1326,11 @@ contains
     integer                       :: ivals(table%nrows) 
     integer i
     cell = table%cell
-    if ( any( cell(:, col) == 'NA' ) ) then
+    if ( any( cell(:, col) == 'NA' ) .or. any( cell(:, col) == '' ) ) then
       print *, '[table_mo.f90:to_integer_colindex] *** Warning: integer column has NAs'
       print *, '[table_mo.f90:to_integer_colindex] NAs are replaced by iNA(e.g., -999)'
       do concurrent ( i = 1:table%nrows )
-        if ( cell(i, col) == 'NA' ) then
+        if ( cell(i, col) == 'NA' .or. cell(i, col) == '' ) then
           write ( cell(i, col), * ) iNA
         end if
       end do
@@ -1348,11 +1348,11 @@ contains
     integer i, j
     cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
-    if ( any( cell(:, j) == 'NA' ) ) then
+    if ( any( cell(:, j) == 'NA' ) .or. any( cell(:, j) == '' ) ) then
       print *, '[table_mo.f90:to_integer_colname] *** Warning: integer column has NAs'
       print *, '[table_mo.f90:to_integer_colname] NAs are replaced by iNA(e.g., -999)'
       do concurrent ( i = 1:table%nrows )
-        if ( cell(i, j) == 'NA' ) then
+        if ( cell(i, j) == 'NA' .or. cell(i, j) == '' ) then
           write ( cell(i, j), * ) iNA
         end if
       end do
@@ -1369,11 +1369,11 @@ contains
     real                          :: rvals(table%nrows) 
     integer i
     cell = table%cell
-    if ( any( cell(:, col) == 'NA' ) ) then
+    if ( any( cell(:, col) == 'NA' ) .or. any( cell(:, col) == '' ) ) then
       print *, '[table_mo.f90:to_real_colindex] *** Warning: real column has NAs'
       print *, '[table_mo.f90:to_real_colindex] NAs are replaced by rNA(e.g., -999.0)'
       do concurrent ( i = 1:table%nrows )
-        if ( cell(i, col) == 'NA' ) then
+        if ( cell(i, col) == 'NA' .or. cell(i, col) == '' ) then
           write ( cell(i, col), * ) rNA
         end if
       end do
@@ -1391,11 +1391,11 @@ contains
     integer i, j
     cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
-    if ( any( cell(:, j) == 'NA' ) ) then
+    if ( any( cell(:, j) == 'NA' ) .or. any( cell(:, j) == '' )) then
       print *, '[table_mo.f90:to_real_colname] *** Warning: real column has NAs'
       print *, '[table_mo.f90:to_real_colname] NAs are replaced by rNA(e.g., -999.0)'
       do concurrent ( i = 1:table%nrows )
-        if ( cell(i, j) == 'NA' ) then
+        if ( cell(i, j) == 'NA' .or. cell(i, j) == '' ) then
           write ( cell(i, j), * ) rNA
         end if
       end do
