@@ -1299,7 +1299,7 @@ contains
       error stop 1
     end if
     do concurrent ( i = 1:table%nrows )
-      read ( table%cell(i, col), * ) lvals(i)
+      read ( table%cell(i, col), '(l)' ) lvals(i)
     end do
   end function to_logical_colindex
 
@@ -1315,7 +1315,7 @@ contains
       error stop 1
     end if
     do concurrent ( i = 1:table%nrows )
-      read ( table%cell(i, j), * ) lvals(i)
+      read ( table%cell(i, j), '(l)' ) lvals(i)
     end do
   end function to_logical_colname
 
@@ -1331,7 +1331,7 @@ contains
       print *, '[table_mo.f90:to_integer_colindex] NAs are replaced by iNA(e.g., -999)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, col) == 'NA' .or. cell(i, col) == '' ) then
-          write ( cell(i, col), * ) iNA
+          write ( cell(i, col), '(i0)' ) iNA
         end if
       end do
     end if
@@ -1353,7 +1353,7 @@ contains
       print *, '[table_mo.f90:to_integer_colname] NAs are replaced by iNA(e.g., -999)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, j) == 'NA' .or. cell(i, j) == '' ) then
-          write ( cell(i, j), * ) iNA
+          write ( cell(i, j), '(i0)' ) iNA
         end if
       end do
     end if
@@ -1371,12 +1371,12 @@ contains
     cell = table%cell
     if ( any( cell(:, col) == 'NA' ) .or. any( cell(:, col) == '' ) ) then
       print *, '[table_mo.f90:to_real_colindex] *** Warning: real column has NAs'
-      print *, '[table_mo.f90:to_real_colindex] NAs are replaced by rNA(e.g., -999.0)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, col) == 'NA' .or. cell(i, col) == '' ) then
-          write ( cell(i, col), * ) rNA
+          write ( cell(i, col), '(g0)' ) rNA
         end if
       end do
+      print *, '[table_mo.f90:to_real_colindex] NAs has been replaced by rNA(e.g., -999.0)'
     end if
     do concurrent ( i = 1:table%nrows )
       read ( cell(i, col), * ) rvals(i)
@@ -1396,7 +1396,7 @@ contains
       print *, '[table_mo.f90:to_real_colname] NAs are replaced by rNA(e.g., -999.0)'
       do concurrent ( i = 1:table%nrows )
         if ( cell(i, j) == 'NA' .or. cell(i, j) == '' ) then
-          write ( cell(i, j), * ) rNA
+          write ( cell(i, j), '(g0)' ) rNA
         end if
       end do
     end if
