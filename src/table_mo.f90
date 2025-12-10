@@ -1147,7 +1147,7 @@ contains
 
   end function intersect
 
-  pure subroutine sort_character ( keys, ii )
+  subroutine sort_character ( keys, ii )
     ! key shall have numeric value in every string
 
     character(*), intent(in)    :: keys(:) ! The array to be sorted
@@ -1156,7 +1156,7 @@ contains
     integer(8)                  :: a(size(keys)) ! Use int8 to handle datetime integer
     integer i, p, i_a
 
-    do concurrent ( i = 1:size(keys) )
+    do i = 1, size(keys)
       str = ''
       do p = 1, len_trim(keys(i))
         i_a = iachar(keys(i)(p:p)) ! extracts character number from string
@@ -1164,11 +1164,10 @@ contains
           str = str//keys(i)(p:p)
         end if
       end do
-      !print *, 'str:', trim(str)
       if ( len_trim(str) == 0 ) then
-         a(i) = 0  ! Default value for strings without digits
+        a(i) = 0  ! Default value for strings without digits
       else
-         read ( str, * ) a(i)
+        read ( str, * ) a(i)
       end if
     end do
 
@@ -1176,100 +1175,174 @@ contains
 
   end subroutine sort_character
 
-  pure recursive subroutine sort_integer8 ( a, ii, low, high )
+  pure subroutine sort_integer8 ( a, ii, low, high )
+    ! Iterative quicksort to avoid stack overflow with coarray
     integer(8), intent(inout) :: a(:)  ! The array to be sorted
     integer,    intent(inout) :: ii(:) ! The indices to track sorted order
     integer,    intent(in)    :: low, high
-    integer i, pivot
-    if ( low < high ) then
-      call partition( a, ii, low, high, pivot )
-      ! Sort the partitions concurrently
-      do concurrent ( i = 1:2 )
-        select case ( i )
-        case ( 1 )
-          call sort_integer8( a, ii, low, pivot - 1 )
-        case ( 2 )
-          call sort_integer8( a, ii, pivot + 1, high )
-        end select
-      end do
-    end if
-  contains
-    pure subroutine partition ( a, ii, low, high, pivot )
-      integer(8), intent(inout) :: a(:)      ! The array to partition
-      integer,    intent(inout) :: ii(:)     ! The indices array
-      integer,    intent(in)    :: low, high ! The range of the array
-      integer,    intent(out)   :: pivot     ! The pivot index
-      integer(8)                :: pivot_value, tmp_a
-      integer i, j, tmp_ii
-      pivot_value = a(high)
-      i = low - 1
-      do j = low, high - 1
-        if ( a(j) <= pivot_value ) then
-          i = i + 1
-          tmp_a = a(i)
-          a(i) = a(j)
-          a(j) = tmp_a
-          tmp_ii = ii(i)
-          ii(i) = ii(j)
-          ii(j) = tmp_ii
+    integer, parameter        :: STACK_SIZE = 64  ! Enough for 2^64 elements
+    integer :: stack(STACK_SIZE, 2)
+    integer :: sp, lo, hi, pivot
+    integer(8) :: pivot_value, tmp_a, mid_val
+    integer :: i, j, tmp_ii, mid
+
+    if ( low >= high ) return
+
+    ! Initialize stack
+    sp = 1
+    stack(sp, 1) = low
+    stack(sp, 2) = high
+
+    do while ( sp > 0 )
+      ! Pop from stack
+      lo = stack(sp, 1)
+      hi = stack(sp, 2)
+      sp = sp - 1
+
+      if ( lo < hi ) then
+        ! Median-of-three pivot selection to avoid worst case
+        mid = (lo + hi) / 2
+        ! Sort lo, mid, hi
+        if ( a(lo) > a(mid) ) then
+          tmp_a = a(lo); a(lo) = a(mid); a(mid) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(mid); ii(mid) = tmp_ii
         end if
-      end do
-      tmp_a = a(i + 1)
-      a(i + 1) = a(high)
-      a(high) = tmp_a
-      tmp_ii = ii(i + 1)
-      ii(i + 1) = ii(high)
-      ii(high) = tmp_ii
-      pivot = i + 1
-    end subroutine
+        if ( a(lo) > a(hi) ) then
+          tmp_a = a(lo); a(lo) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(hi); ii(hi) = tmp_ii
+        end if
+        if ( a(mid) > a(hi) ) then
+          tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
+        end if
+        ! Use median as pivot (swap to hi-1 position)
+        tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
+        tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
+
+        ! Partition
+        pivot_value = a(hi)
+        i = lo - 1
+        do j = lo, hi - 1
+          if ( a(j) <= pivot_value ) then
+            i = i + 1
+            tmp_a = a(i); a(i) = a(j); a(j) = tmp_a
+            tmp_ii = ii(i); ii(i) = ii(j); ii(j) = tmp_ii
+          end if
+        end do
+        tmp_a = a(i + 1); a(i + 1) = a(hi); a(hi) = tmp_a
+        tmp_ii = ii(i + 1); ii(i + 1) = ii(hi); ii(hi) = tmp_ii
+        pivot = i + 1
+
+        ! Push smaller partition first (tail call optimization)
+        if ( pivot - lo < hi - pivot ) then
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+        else
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
+        end if
+      end if
+    end do
+
   end subroutine sort_integer8
 
-  pure recursive subroutine sort_integer4 ( a, ii, low, high )
+  pure subroutine sort_integer4 ( a, ii, low, high )
+    ! Iterative quicksort to avoid stack overflow with coarray
     integer(4), intent(inout) :: a(:)  ! The array to be sorted
     integer,    intent(inout) :: ii(:) ! The indices to track sorted order
     integer,    intent(in)    :: low, high
-    integer i, pivot
-    if ( low < high ) then
-      call partition( a, ii, low, high, pivot )
-      ! Sort the partitions concurrently
-      do concurrent ( i = 1:2 )
-        select case ( i )
-        case ( 1 )
-          call sort_integer4( a, ii, low, pivot - 1 )
-        case ( 2 )
-          call sort_integer4( a, ii, pivot + 1, high )
-        end select
-      end do
-    end if
-  contains
-    pure subroutine partition ( a, ii, low, high, pivot )
-      integer(4), intent(inout) :: a(:)      ! The array to partition
-      integer,    intent(inout) :: ii(:)     ! The indices array
-      integer,    intent(in)    :: low, high ! The range of the array
-      integer,    intent(out)   :: pivot     ! The pivot index
-      integer                :: pivot_value, tmp_a
-      integer i, j, tmp_ii
-      pivot_value = a(high)
-      i = low - 1
-      do j = low, high - 1
-        if ( a(j) <= pivot_value ) then
-          i = i + 1
-          tmp_a = a(i)
-          a(i) = a(j)
-          a(j) = tmp_a
-          tmp_ii = ii(i)
-          ii(i) = ii(j)
-          ii(j) = tmp_ii
+    integer, parameter        :: STACK_SIZE = 64
+    integer :: stack(STACK_SIZE, 2)
+    integer :: sp, lo, hi, pivot
+    integer(4) :: pivot_value, tmp_a
+    integer :: i, j, tmp_ii, mid
+
+    if ( low >= high ) return
+
+    sp = 1
+    stack(sp, 1) = low
+    stack(sp, 2) = high
+
+    do while ( sp > 0 )
+      lo = stack(sp, 1)
+      hi = stack(sp, 2)
+      sp = sp - 1
+
+      if ( lo < hi ) then
+        ! Median-of-three pivot selection
+        mid = (lo + hi) / 2
+        if ( a(lo) > a(mid) ) then
+          tmp_a = a(lo); a(lo) = a(mid); a(mid) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(mid); ii(mid) = tmp_ii
         end if
-      end do
-      tmp_a = a(i + 1)
-      a(i + 1) = a(high)
-      a(high) = tmp_a
-      tmp_ii = ii(i + 1)
-      ii(i + 1) = ii(high)
-      ii(high) = tmp_ii
-      pivot = i + 1
-    end subroutine
+        if ( a(lo) > a(hi) ) then
+          tmp_a = a(lo); a(lo) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(hi); ii(hi) = tmp_ii
+        end if
+        if ( a(mid) > a(hi) ) then
+          tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
+        end if
+        tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
+        tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
+
+        ! Partition
+        pivot_value = a(hi)
+        i = lo - 1
+        do j = lo, hi - 1
+          if ( a(j) <= pivot_value ) then
+            i = i + 1
+            tmp_a = a(i); a(i) = a(j); a(j) = tmp_a
+            tmp_ii = ii(i); ii(i) = ii(j); ii(j) = tmp_ii
+          end if
+        end do
+        tmp_a = a(i + 1); a(i + 1) = a(hi); a(hi) = tmp_a
+        tmp_ii = ii(i + 1); ii(i + 1) = ii(hi); ii(hi) = tmp_ii
+        pivot = i + 1
+
+        ! Push smaller partition first
+        if ( pivot - lo < hi - pivot ) then
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+        else
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
+        end if
+      end if
+    end do
+
   end subroutine sort_integer4
 
   subroutine sort_table ( table, desc )
