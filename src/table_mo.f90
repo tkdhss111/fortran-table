@@ -11,7 +11,7 @@ module table_mo
   public :: inner_join_pure, left_join_pure, right_join_pure
   public :: insert_or_replace, append
   public :: union, intersect
-  public :: sort_integer, sort_character
+  public :: sort_integer, sort_character, sort_table
   public :: get_cells_from_csvline, get_csvline_from_cells
   public :: count_rows, count_cols, count_seps
   public :: read_csv, csv2parquet
@@ -41,18 +41,19 @@ module table_mo
     procedure :: delete_integer, delete_logical, delete_character
     generic   :: delete => delete_integer, delete_logical, delete_character
     procedure :: insert_col
+    procedure :: sort => sort_table
     procedure :: to_character_colindex, to_logical_colindex, to_integer_colindex, to_real_colindex
     procedure :: to_character_colname,  to_logical_colname,  to_integer_colname,  to_real_colname
-    generic   :: to_character   => to_character_colindex,    to_character_colname 
-    generic   :: to_logical     => to_logical_colindex,      to_logical_colname 
-    generic   :: to_integer     => to_integer_colindex,      to_integer_colname 
-    generic   :: to_real        => to_real_colindex,         to_real_colname 
+    generic   :: to_character   => to_character_colindex,    to_character_colname
+    generic   :: to_logical     => to_logical_colindex,      to_logical_colname
+    generic   :: to_integer     => to_integer_colindex,      to_integer_colname
+    generic   :: to_real        => to_real_colindex,         to_real_colname
     procedure :: from_character_colindex, from_logical_colindex, from_integer_colindex, from_real_colindex
     procedure :: from_character_colname,  from_logical_colname,  from_integer_colname,  from_real_colname
-    generic   :: from_character => from_character_colindex, from_character_colname 
-    generic   :: from_logical   => from_logical_colindex,   from_logical_colname 
-    generic   :: from_integer   => from_integer_colindex,   from_integer_colname 
-    generic   :: from_real      => from_real_colindex,      from_real_colname 
+    generic   :: from_character => from_character_colindex, from_character_colname
+    generic   :: from_logical   => from_logical_colindex,   from_logical_colname
+    generic   :: from_integer   => from_integer_colindex,   from_integer_colname
+    generic   :: from_real      => from_real_colindex,      from_real_colname
     procedure :: inner_join, left_join, right_join
     procedure :: insert_or_replace, append
     procedure :: write_csv, read_csv, write_parquet
@@ -76,7 +77,7 @@ module table_mo
   end interface
 
   interface sort_integer
-    procedure :: sort_integer4, sort_integer8 
+    procedure :: sort_integer4, sort_integer8
   end interface
 
 contains
@@ -400,7 +401,7 @@ contains
     do i1 = 1, table1%nrows
       do i2 = 1, table2%nrows
         if ( key1(i1) == key2(i2) ) then
-          write ( u ) table1%cell(i1, :), table2%cell(i2, :) 
+          write ( u ) table1%cell(i1, :), table2%cell(i2, :)
           nrows = nrows + 1
         end if
       end do
@@ -901,7 +902,7 @@ contains
     10 rewind( u )
   end function count_rows
 
-  pure function get_cells_from_csvline ( csvline ) result ( cells ) 
+  pure function get_cells_from_csvline ( csvline ) result ( cells )
 
     character(*), intent(in)      :: csvline
     character(LEN_C), allocatable :: cells(:)
@@ -1164,7 +1165,11 @@ contains
         end if
       end do
       !print *, 'str:', trim(str)
-      read ( str, * ) a(i)
+      if ( len_trim(str) == 0 ) then
+         a(i) = 0  ! Default value for strings without digits
+      else
+         read ( str, * ) a(i)
+      end if
     end do
 
     call sort_integer8( a, ii, 1, size(a) )
@@ -1267,6 +1272,37 @@ contains
     end subroutine
   end subroutine sort_integer4
 
+  subroutine sort_table ( table, desc )
+
+    class(table_ty),   intent(inout) :: table
+    logical, optional, intent(in)    :: desc
+    integer, allocatable             :: ii(:)
+    integer i
+    integer(4) j
+    logical desc_
+
+    if ( present( desc ) ) then
+      desc_ = desc
+    else
+      desc_ = .false.
+    end if
+
+    call table%print
+
+    j = findloc( adjustl(table%colnames), table%key, dim = 1 )
+
+    ii  = [( i, i = 1, table%nrows )]
+
+    call sort_character( table%cell(:, j), ii )
+
+    if ( desc_ ) then
+      ii = ii(table%nrows:1:-1)
+    end if
+
+    table%cell = table%cell(ii, :)
+
+  end subroutine sort_table
+
   !==============================================
   ! Column Converter
   !
@@ -1277,21 +1313,21 @@ contains
   function to_character_colindex ( table, col ) result ( cvals )
     class(table_ty), intent(in) :: table
     integer,         intent(in) :: col
-    character(LEN_C)            :: cvals(table%nrows) 
+    character(LEN_C)            :: cvals(table%nrows)
     cvals = table%cell(:, col)
   end function to_character_colindex
 
   function to_character_colname ( table, col ) result ( cvals )
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
-    character(LEN_C)            :: cvals(table%nrows) 
+    character(LEN_C)            :: cvals(table%nrows)
     cvals = table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 ))
   end function to_character_colname
 
   function to_logical_colindex ( table, col ) result ( lvals )
     class(table_ty), intent(in) :: table
     integer,         intent(in) :: col
-    logical                     :: lvals(table%nrows) 
+    logical                     :: lvals(table%nrows)
     integer i
     if ( any( table%cell(:, col) == 'NA' .or. table%cell(:, col) == '' ) ) then
       print *, '[table_mo.f90:to_logical_colindex] *** Error: logical column shall not have NAs'
@@ -1306,7 +1342,7 @@ contains
   function to_logical_colname ( table, col ) result ( lvals )
     class(table_ty), intent(in) :: table
     character(*),    intent(in) :: col
-    logical                     :: lvals(table%nrows) 
+    logical                     :: lvals(table%nrows)
     integer i, j
     j = findloc( adjustl(table%colnames), col, dim = 1 )
     if ( any( table%cell(:, j) == 'NA' ) .or. any( table%cell(:, j) == '' ) ) then
@@ -1323,7 +1359,7 @@ contains
     class(table_ty), intent(in)   :: table
     integer,         intent(in)   :: col
     character(LEN_C), allocatable :: cell(:, :)
-    integer                       :: ivals(table%nrows) 
+    integer                       :: ivals(table%nrows)
     integer i
     cell = table%cell
     if ( any( cell(:, col) == 'NA' ) .or. any( cell(:, col) == '' ) ) then
@@ -1344,7 +1380,7 @@ contains
     class(table_ty), intent(in)   :: table
     character(*),    intent(in)   :: col
     character(LEN_C), allocatable :: cell(:, :)
-    integer                       :: ivals(table%nrows) 
+    integer                       :: ivals(table%nrows)
     integer i, j
     cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
@@ -1366,7 +1402,7 @@ contains
     class(table_ty), intent(in)   :: table
     integer,         intent(in)   :: col
     character(LEN_C), allocatable :: cell(:, :)
-    real                          :: rvals(table%nrows) 
+    real                          :: rvals(table%nrows)
     integer i
     cell = table%cell
     if ( any( cell(:, col) == 'NA' ) .or. any( cell(:, col) == '' ) ) then
@@ -1387,7 +1423,7 @@ contains
     class(table_ty), intent(in)   :: table
     character(*),    intent(in)   :: col
     character(LEN_C), allocatable :: cell(:, :)
-    real                          :: rvals(table%nrows) 
+    real                          :: rvals(table%nrows)
     integer i, j
     cell = table%cell
     j = findloc( adjustl(table%colnames), col, dim = 1 )
@@ -1411,21 +1447,21 @@ contains
 
   subroutine from_character_colindex ( table, vals, col )
     class(table_ty), intent(inout) :: table
-    character(*),    intent(in)    :: vals(table%nrows) 
+    character(*),    intent(in)    :: vals(table%nrows)
     integer,         intent(in)    :: col
     table%cell(:, col) = vals
   end subroutine from_character_colindex
 
   pure subroutine from_character_colname ( table, vals, col )
     class(table_ty), intent(inout) :: table
-    character(*),    intent(in)    :: vals(table%nrows) 
+    character(*),    intent(in)    :: vals(table%nrows)
     character(*),    intent(in)    :: col
     table%cell(:, findloc( adjustl(table%colnames), col, dim = 1 )) = vals
   end subroutine from_character_colname
 
   pure subroutine from_logical_colindex ( table, vals, col )
     class(table_ty), intent(inout) :: table
-    logical,         intent(in)    :: vals(table%nrows) 
+    logical,         intent(in)    :: vals(table%nrows)
     integer,         intent(in)    :: col
     integer i
     do concurrent ( i = 1:table%nrows )

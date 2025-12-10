@@ -32,7 +32,7 @@ program unit_test_table_mo
   table%cell(3, :) = [ '31', '32', '33' ]
 
   call table%print
-  call table%print( n = 2 ) ! with n rows 
+  call table%print( n = 2 ) ! with n rows
 
   print *, '------------------------------------------'
   print *, 'Test 1-1: Empty table'
@@ -53,7 +53,7 @@ program unit_test_table_mo
   print *, 'Test 2-1: with column indices'
   print *, '------------------------------------------'
 
-  table1 = select( table, [ 3, 2 ] ) 
+  table1 = select( table, [ 3, 2 ] )
 
   call table1%print
 
@@ -61,7 +61,7 @@ program unit_test_table_mo
   print *, 'Test 2-2: with logical vector'
   print *, '------------------------------------------'
 
-  table1 = select( table, [ .false., .true., .false. ] ) 
+  table1 = select( table, [ .false., .true., .false. ] )
 
   call table1%print
 
@@ -583,5 +583,31 @@ program unit_test_table_mo
   do i = 1, size(str)
     print *, 'Rank:', i, ', Value: ', trim( str(ii(i)) )
   end do
+
+  print *, '-----------------------------------------'
+  print *, 'Test D-1: Sort table'
+  print *, '-----------------------------------------'
+
+  call table%init( nrows = 4, ncols = 3, key = 'datetime' )
+  table%colnames   = [ 'datetime', '    col1', '    col2' ]
+  table%cell(:, 1) = [ '2025-05-01 20:00:00', &
+                       '2025-05-01 12:00:00', &
+                       '2025-05-01 06:00:00', &
+                       '2025-04-01 00:00:00' ]
+  table%cell(:, 2) = [ 'c11', 'c21', 'c31', 'c41' ]
+  table%cell(:, 3) = [ 'c12', 'c22', 'c32', 'c42' ]
+
+  print *, 'Sort table (ascending)'
+
+  call table%sort
+
+  call table%print
+
+  print *, 'Sort table (descending)'
+
+  call table%sort( desc = .true. )
+
+  call table%print
+
 
 end program
