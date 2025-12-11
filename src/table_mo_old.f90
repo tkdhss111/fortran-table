@@ -12,7 +12,6 @@ module table_mo
   public :: insert_or_replace, append
   public :: union, intersect
   public :: sort_integer, sort_character, sort_table
-  public :: radix_sort_integer8, radix_sort_integer4, radix_sort
   public :: get_cells_from_csvline, get_csvline_from_cells
   public :: count_rows, count_cols, count_seps
   public :: read_csv, csv2parquet
@@ -79,10 +78,6 @@ module table_mo
 
   interface sort_integer
     procedure :: sort_integer4, sort_integer8
-  end interface
-
-  interface radix_sort
-    procedure :: radix_sort_integer4, radix_sort_integer8
   end interface
 
 contains
@@ -1154,288 +1149,117 @@ contains
 
   subroutine sort_character ( keys, ii )
     ! key shall have numeric value in every string
-    ! Optimized: uses direct arithmetic instead of string concatenation
-    ! Hybrid: uses radix sort for large arrays (O(n)), quicksort for small (O(n log n))
 
-    character(*), intent(in)    :: keys(:)
-    integer,      intent(inout) :: ii(:)
-    integer(8),   allocatable   :: a(:)
-    integer :: i, p, n, digit
-    integer(8) :: val
+    character(*), intent(in)    :: keys(:) ! The array to be sorted
+    integer,      intent(inout) :: ii(:)   ! The indices to track sorted order
+    character(:), allocatable   :: str
+    integer(8),   allocatable   :: a(:)    ! Use allocatable to avoid stack overflow
+    integer i, p, i_a
 
-    ! Threshold for switching to radix sort
-    integer, parameter :: RADIX_THRESHOLD = 10000
+    allocate( a(size(keys)) )
 
-    n = size(keys)
-    allocate( a(n) )
-
-    ! Extract numeric values using direct arithmetic
-    do i = 1, n
-      val = 0_8
+    do i = 1, size(keys)
+      str = ''
       do p = 1, len_trim(keys(i))
-        digit = iachar(keys(i)(p:p)) - 48  ! '0' = ASCII 48
-        if ( digit >= 0 .and. digit <= 9 ) then
-          val = val * 10_8 + int(digit, 8)
+        i_a = iachar(keys(i)(p:p)) ! extracts character number from string
+        if ( 48 <= i_a .and. i_a <= 57 ) then
+          str = str//keys(i)(p:p)
         end if
       end do
-      a(i) = val
+      if ( len_trim(str) == 0 ) then
+        a(i) = 0  ! Default value for strings without digits
+      else
+        read ( str, * ) a(i)
+      end if
     end do
 
-    ! Use radix sort for large arrays, quicksort for small
-    if ( n >= RADIX_THRESHOLD ) then
-      call radix_sort_integer8( a, ii, n )
-    else
-      call sort_integer8( a, ii, 1, n )
-    end if
+    call sort_integer8( a, ii, 1, size(a) )
 
     deallocate( a )
 
   end subroutine sort_character
 
-  subroutine radix_sort_integer8 ( a, ii, n )
-    ! LSD Radix sort for integer(8) - O(n) complexity
-    ! Stable sort, much faster than quicksort for large arrays
-    integer(8), intent(inout) :: a(:)
-    integer,    intent(inout) :: ii(:)
-    integer,    intent(in)    :: n
-
-    integer, parameter :: RADIX_BITS = 8
-    integer, parameter :: RADIX_SIZE = 256  ! 2^8
-    integer(8), allocatable :: temp_a(:)
-    integer, allocatable :: temp_ii(:), counts(:)
-    integer :: i, pass, num_passes, idx
-    integer(8) :: max_val, min_val, shift_val, offset
-
-    if ( n <= 1 ) return
-
-    allocate( temp_a(n), temp_ii(n), counts(0:RADIX_SIZE-1) )
-
-    ! Handle negative values by finding min and offsetting
-    min_val = minval(a(1:n))
-    if ( min_val < 0 ) then
-      offset = -min_val
-      do i = 1, n
-        a(i) = a(i) + offset
-      end do
-    else
-      offset = 0
-    end if
-
-    ! Find max value to determine number of passes
-    max_val = maxval(a(1:n))
-    num_passes = 0
-    shift_val = max_val
-    do while ( shift_val > 0 )
-      num_passes = num_passes + 1
-      shift_val = shiftr(shift_val, RADIX_BITS)
-    end do
-    if ( num_passes == 0 ) num_passes = 1
-
-    ! LSD radix sort - process from least significant to most significant byte
-    do pass = 0, num_passes - 1
-      ! Count occurrences of each byte value
-      counts = 0
-      do i = 1, n
-        idx = iand(int(shiftr(a(i), pass * RADIX_BITS)), RADIX_SIZE - 1)
-        counts(idx) = counts(idx) + 1
-      end do
-
-      ! Convert counts to cumulative positions (prefix sum)
-      do i = 1, RADIX_SIZE - 1
-        counts(i) = counts(i) + counts(i-1)
-      end do
-
-      ! Build sorted output (iterate backward for stability)
-      do i = n, 1, -1
-        idx = iand(int(shiftr(a(i), pass * RADIX_BITS)), RADIX_SIZE - 1)
-        counts(idx) = counts(idx) - 1
-        temp_a(counts(idx) + 1) = a(i)
-        temp_ii(counts(idx) + 1) = ii(i)
-      end do
-
-      ! Copy back to original arrays
-      a(1:n) = temp_a(1:n)
-      ii(1:n) = temp_ii(1:n)
-    end do
-
-    ! Restore original values if we applied offset
-    if ( offset /= 0 ) then
-      do i = 1, n
-        a(i) = a(i) - offset
-      end do
-    end if
-
-    deallocate( temp_a, temp_ii, counts )
-
-  end subroutine radix_sort_integer8
-
-  subroutine radix_sort_integer4 ( a, ii, n )
-    ! LSD Radix sort for integer(4) - O(n) complexity
-    integer(4), intent(inout) :: a(:)
-    integer,    intent(inout) :: ii(:)
-    integer,    intent(in)    :: n
-
-    integer, parameter :: RADIX_BITS = 8
-    integer, parameter :: RADIX_SIZE = 256
-    integer(4), allocatable :: temp_a(:)
-    integer, allocatable :: temp_ii(:), counts(:)
-    integer :: i, pass, num_passes, idx
-    integer(4) :: max_val, min_val, shift_val, offset
-
-    if ( n <= 1 ) return
-
-    allocate( temp_a(n), temp_ii(n), counts(0:RADIX_SIZE-1) )
-
-    ! Handle negative values
-    min_val = minval(a(1:n))
-    if ( min_val < 0 ) then
-      offset = -min_val
-      do i = 1, n
-        a(i) = a(i) + offset
-      end do
-    else
-      offset = 0
-    end if
-
-    ! Find max value to determine number of passes
-    max_val = maxval(a(1:n))
-    num_passes = 0
-    shift_val = max_val
-    do while ( shift_val > 0 )
-      num_passes = num_passes + 1
-      shift_val = shiftr(shift_val, RADIX_BITS)
-    end do
-    if ( num_passes == 0 ) num_passes = 1
-
-    ! LSD radix sort
-    do pass = 0, num_passes - 1
-      counts = 0
-      do i = 1, n
-        idx = iand(int(shiftr(a(i), pass * RADIX_BITS)), RADIX_SIZE - 1)
-        counts(idx) = counts(idx) + 1
-      end do
-
-      do i = 1, RADIX_SIZE - 1
-        counts(i) = counts(i) + counts(i-1)
-      end do
-
-      do i = n, 1, -1
-        idx = iand(int(shiftr(a(i), pass * RADIX_BITS)), RADIX_SIZE - 1)
-        counts(idx) = counts(idx) - 1
-        temp_a(counts(idx) + 1) = a(i)
-        temp_ii(counts(idx) + 1) = ii(i)
-      end do
-
-      a(1:n) = temp_a(1:n)
-      ii(1:n) = temp_ii(1:n)
-    end do
-
-    if ( offset /= 0 ) then
-      do i = 1, n
-        a(i) = a(i) - offset
-      end do
-    end if
-
-    deallocate( temp_a, temp_ii, counts )
-
-  end subroutine radix_sort_integer4
-
   pure subroutine sort_integer8 ( a, ii, low, high )
-    ! Iterative quicksort with insertion sort for small partitions
-    integer(8), intent(inout) :: a(:)
-    integer,    intent(inout) :: ii(:)
+    ! Iterative quicksort to avoid stack overflow with coarray
+    integer(8), intent(inout) :: a(:)  ! The array to be sorted
+    integer,    intent(inout) :: ii(:) ! The indices to track sorted order
     integer,    intent(in)    :: low, high
-
-    integer, parameter :: INSERTION_THRESHOLD = 16
-    integer, parameter :: STACK_SIZE = 64
+    integer, parameter        :: STACK_SIZE = 64  ! Enough for 2^64 elements
     integer :: stack(STACK_SIZE, 2)
-    integer :: sp, lo, hi, pivot, mid
-    integer(8) :: pivot_value, tmp_a
-    integer :: i, j, tmp_ii
+    integer :: sp, lo, hi, pivot
+    integer(8) :: pivot_value, tmp_a, mid_val
+    integer :: i, j, tmp_ii, mid
 
     if ( low >= high ) return
 
+    ! Initialize stack
     sp = 1
     stack(sp, 1) = low
     stack(sp, 2) = high
 
     do while ( sp > 0 )
+      ! Pop from stack
       lo = stack(sp, 1)
       hi = stack(sp, 2)
       sp = sp - 1
 
-      ! Use insertion sort for small partitions (faster due to less overhead)
-      if ( hi - lo < INSERTION_THRESHOLD ) then
-        do i = lo + 1, hi
-          tmp_a = a(i)
-          tmp_ii = ii(i)
-          j = i - 1
-          do while ( j >= lo .and. a(j) > tmp_a )
-            a(j + 1) = a(j)
-            ii(j + 1) = ii(j)
-            j = j - 1
-          end do
-          a(j + 1) = tmp_a
-          ii(j + 1) = tmp_ii
-        end do
-        cycle
-      end if
-
-      ! Median-of-three pivot selection
-      mid = (lo + hi) / 2
-      if ( a(lo) > a(mid) ) then
-        tmp_a = a(lo); a(lo) = a(mid); a(mid) = tmp_a
-        tmp_ii = ii(lo); ii(lo) = ii(mid); ii(mid) = tmp_ii
-      end if
-      if ( a(lo) > a(hi) ) then
-        tmp_a = a(lo); a(lo) = a(hi); a(hi) = tmp_a
-        tmp_ii = ii(lo); ii(lo) = ii(hi); ii(hi) = tmp_ii
-      end if
-      if ( a(mid) > a(hi) ) then
+      if ( lo < hi ) then
+        ! Median-of-three pivot selection to avoid worst case
+        mid = (lo + hi) / 2
+        ! Sort lo, mid, hi
+        if ( a(lo) > a(mid) ) then
+          tmp_a = a(lo); a(lo) = a(mid); a(mid) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(mid); ii(mid) = tmp_ii
+        end if
+        if ( a(lo) > a(hi) ) then
+          tmp_a = a(lo); a(lo) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(hi); ii(hi) = tmp_ii
+        end if
+        if ( a(mid) > a(hi) ) then
+          tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
+        end if
+        ! Use median as pivot (swap to hi-1 position)
         tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
         tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
-      end if
 
-      ! Move pivot to hi position
-      tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
-      tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
+        ! Partition
+        pivot_value = a(hi)
+        i = lo - 1
+        do j = lo, hi - 1
+          if ( a(j) <= pivot_value ) then
+            i = i + 1
+            tmp_a = a(i); a(i) = a(j); a(j) = tmp_a
+            tmp_ii = ii(i); ii(i) = ii(j); ii(j) = tmp_ii
+          end if
+        end do
+        tmp_a = a(i + 1); a(i + 1) = a(hi); a(hi) = tmp_a
+        tmp_ii = ii(i + 1); ii(i + 1) = ii(hi); ii(hi) = tmp_ii
+        pivot = i + 1
 
-      ! Partition
-      pivot_value = a(hi)
-      i = lo - 1
-      do j = lo, hi - 1
-        if ( a(j) <= pivot_value ) then
-          i = i + 1
-          tmp_a = a(i); a(i) = a(j); a(j) = tmp_a
-          tmp_ii = ii(i); ii(i) = ii(j); ii(j) = tmp_ii
-        end if
-      end do
-      tmp_a = a(i + 1); a(i + 1) = a(hi); a(hi) = tmp_a
-      tmp_ii = ii(i + 1); ii(i + 1) = ii(hi); ii(hi) = tmp_ii
-      pivot = i + 1
-
-      ! Push larger partition first (process smaller first)
-      if ( pivot - lo < hi - pivot ) then
-        if ( pivot + 1 < hi ) then
-          sp = sp + 1
-          stack(sp, 1) = pivot + 1
-          stack(sp, 2) = hi
-        end if
-        if ( lo < pivot - 1 ) then
-          sp = sp + 1
-          stack(sp, 1) = lo
-          stack(sp, 2) = pivot - 1
-        end if
-      else
-        if ( lo < pivot - 1 ) then
-          sp = sp + 1
-          stack(sp, 1) = lo
-          stack(sp, 2) = pivot - 1
-        end if
-        if ( pivot + 1 < hi ) then
-          sp = sp + 1
-          stack(sp, 1) = pivot + 1
-          stack(sp, 2) = hi
+        ! Push smaller partition first (tail call optimization)
+        if ( pivot - lo < hi - pivot ) then
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+        else
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
         end if
       end if
     end do
@@ -1443,17 +1267,15 @@ contains
   end subroutine sort_integer8
 
   pure subroutine sort_integer4 ( a, ii, low, high )
-    ! Iterative quicksort with insertion sort for small partitions
-    integer(4), intent(inout) :: a(:)
-    integer,    intent(inout) :: ii(:)
+    ! Iterative quicksort to avoid stack overflow with coarray
+    integer(4), intent(inout) :: a(:)  ! The array to be sorted
+    integer,    intent(inout) :: ii(:) ! The indices to track sorted order
     integer,    intent(in)    :: low, high
-
-    integer, parameter :: INSERTION_THRESHOLD = 16
-    integer, parameter :: STACK_SIZE = 64
+    integer, parameter        :: STACK_SIZE = 64
     integer :: stack(STACK_SIZE, 2)
-    integer :: sp, lo, hi, pivot, mid
+    integer :: sp, lo, hi, pivot
     integer(4) :: pivot_value, tmp_a
-    integer :: i, j, tmp_ii
+    integer :: i, j, tmp_ii, mid
 
     if ( low >= high ) return
 
@@ -1466,76 +1288,61 @@ contains
       hi = stack(sp, 2)
       sp = sp - 1
 
-      ! Use insertion sort for small partitions
-      if ( hi - lo < INSERTION_THRESHOLD ) then
-        do i = lo + 1, hi
-          tmp_a = a(i)
-          tmp_ii = ii(i)
-          j = i - 1
-          do while ( j >= lo .and. a(j) > tmp_a )
-            a(j + 1) = a(j)
-            ii(j + 1) = ii(j)
-            j = j - 1
-          end do
-          a(j + 1) = tmp_a
-          ii(j + 1) = tmp_ii
-        end do
-        cycle
-      end if
-
-      ! Median-of-three pivot selection
-      mid = (lo + hi) / 2
-      if ( a(lo) > a(mid) ) then
-        tmp_a = a(lo); a(lo) = a(mid); a(mid) = tmp_a
-        tmp_ii = ii(lo); ii(lo) = ii(mid); ii(mid) = tmp_ii
-      end if
-      if ( a(lo) > a(hi) ) then
-        tmp_a = a(lo); a(lo) = a(hi); a(hi) = tmp_a
-        tmp_ii = ii(lo); ii(lo) = ii(hi); ii(hi) = tmp_ii
-      end if
-      if ( a(mid) > a(hi) ) then
+      if ( lo < hi ) then
+        ! Median-of-three pivot selection
+        mid = (lo + hi) / 2
+        if ( a(lo) > a(mid) ) then
+          tmp_a = a(lo); a(lo) = a(mid); a(mid) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(mid); ii(mid) = tmp_ii
+        end if
+        if ( a(lo) > a(hi) ) then
+          tmp_a = a(lo); a(lo) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(lo); ii(lo) = ii(hi); ii(hi) = tmp_ii
+        end if
+        if ( a(mid) > a(hi) ) then
+          tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
+          tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
+        end if
         tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
         tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
-      end if
-      tmp_a = a(mid); a(mid) = a(hi); a(hi) = tmp_a
-      tmp_ii = ii(mid); ii(mid) = ii(hi); ii(hi) = tmp_ii
 
-      ! Partition
-      pivot_value = a(hi)
-      i = lo - 1
-      do j = lo, hi - 1
-        if ( a(j) <= pivot_value ) then
-          i = i + 1
-          tmp_a = a(i); a(i) = a(j); a(j) = tmp_a
-          tmp_ii = ii(i); ii(i) = ii(j); ii(j) = tmp_ii
-        end if
-      end do
-      tmp_a = a(i + 1); a(i + 1) = a(hi); a(hi) = tmp_a
-      tmp_ii = ii(i + 1); ii(i + 1) = ii(hi); ii(hi) = tmp_ii
-      pivot = i + 1
+        ! Partition
+        pivot_value = a(hi)
+        i = lo - 1
+        do j = lo, hi - 1
+          if ( a(j) <= pivot_value ) then
+            i = i + 1
+            tmp_a = a(i); a(i) = a(j); a(j) = tmp_a
+            tmp_ii = ii(i); ii(i) = ii(j); ii(j) = tmp_ii
+          end if
+        end do
+        tmp_a = a(i + 1); a(i + 1) = a(hi); a(hi) = tmp_a
+        tmp_ii = ii(i + 1); ii(i + 1) = ii(hi); ii(hi) = tmp_ii
+        pivot = i + 1
 
-      ! Push larger partition first
-      if ( pivot - lo < hi - pivot ) then
-        if ( pivot + 1 < hi ) then
-          sp = sp + 1
-          stack(sp, 1) = pivot + 1
-          stack(sp, 2) = hi
-        end if
-        if ( lo < pivot - 1 ) then
-          sp = sp + 1
-          stack(sp, 1) = lo
-          stack(sp, 2) = pivot - 1
-        end if
-      else
-        if ( lo < pivot - 1 ) then
-          sp = sp + 1
-          stack(sp, 1) = lo
-          stack(sp, 2) = pivot - 1
-        end if
-        if ( pivot + 1 < hi ) then
-          sp = sp + 1
-          stack(sp, 1) = pivot + 1
-          stack(sp, 2) = hi
+        ! Push smaller partition first
+        if ( pivot - lo < hi - pivot ) then
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+        else
+          if ( lo < pivot - 1 ) then
+            sp = sp + 1
+            stack(sp, 1) = lo
+            stack(sp, 2) = pivot - 1
+          end if
+          if ( pivot + 1 < hi ) then
+            sp = sp + 1
+            stack(sp, 1) = pivot + 1
+            stack(sp, 2) = hi
+          end if
         end if
       end if
     end do
