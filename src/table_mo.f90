@@ -1547,6 +1547,7 @@ contains
     class(table_ty),   intent(inout) :: table
     logical, optional, intent(in)    :: desc
     integer, allocatable             :: ii(:)
+    character(LEN_C), allocatable    :: temp(:,:)  ! Heap-allocated to avoid stack overflow
     integer i
     integer(4) j
     logical desc_
@@ -1569,7 +1570,11 @@ contains
       ii = ii(table%nrows:1:-1)
     end if
 
-    table%cell = table%cell(ii, :)
+    ! Use heap-allocated temporary to avoid stack overflow on large tables
+    allocate( temp(table%nrows, table%ncols) )
+    temp = table%cell(ii, :)
+    table%cell = temp
+    deallocate( temp )
 
   end subroutine sort_table
 
