@@ -9,7 +9,7 @@ module table_mo
   public :: insert_col
   public :: inner_join, left_join, right_join
   public :: inner_join_pure, left_join_pure, right_join_pure
-  public :: insert_or_replace, append
+  public :: insert_or_replace, append, unique_by_key
   public :: union, intersect
   public :: sort_integer, sort_character, sort_table
   public :: radix_sort_integer8, radix_sort_integer4, radix_sort
@@ -56,7 +56,7 @@ module table_mo
     generic   :: from_integer   => from_integer_colindex,   from_integer_colname
     generic   :: from_real      => from_real_colindex,      from_real_colname
     procedure :: inner_join, left_join, right_join
-    procedure :: insert_or_replace, append
+    procedure :: insert_or_replace, append, unique_by_key
     procedure :: write_csv, read_csv, write_parquet
     procedure :: print => print_table
     generic, public :: operator(+) => insert_or_replace
@@ -646,6 +646,57 @@ contains
     table3%cell(table1%nrows+1:, :) = table2%cell
 
   end function append
+
+  ! Remove duplicate rows based on key column, keeping the first occurrence
+  pure function unique_by_key ( table ) result ( table_unique )
+
+    class(table_ty), intent(in) :: table
+    type(table_ty)              :: table_unique
+    logical, allocatable        :: keep(:)
+    integer, allocatable        :: keep_idx(:)
+    integer i, j, j_key, n_unique
+
+    if ( table%nrows == 0 ) then
+      table_unique = table
+      return
+    end if
+
+    j_key = findloc( adjustl(table%colnames), table%key, dim = 1 )
+    if ( j_key == 0 ) j_key = 1  ! Default to first column
+
+    allocate( keep(table%nrows), source = .true. )
+
+    ! Mark duplicates (keep first occurrence only)
+    do i = 2, table%nrows
+      do j = 1, i - 1
+        if ( keep(j) .and. table%cell(i, j_key) == table%cell(j, j_key) ) then
+          keep(i) = .false.
+          exit
+        end if
+      end do
+    end do
+
+    n_unique = count(keep)
+    allocate( keep_idx(n_unique) )
+
+    j = 0
+    do i = 1, table%nrows
+      if ( keep(i) ) then
+        j = j + 1
+        keep_idx(j) = i
+      end if
+    end do
+
+    call table_unique%init( nrows    = n_unique,               &
+                            ncols    = table%ncols,            &
+                            colnames = table%colnames,         &
+                            name     = table%name,             &
+                            key      = table%key,              &
+                            file     = table%file )
+
+    table_unique%cell = table%cell(keep_idx, :)
+
+  end function unique_by_key
 
   ! Insert or replace table2 into table1
   pure function insert_or_replace ( table1, table2 ) result ( table3 )
