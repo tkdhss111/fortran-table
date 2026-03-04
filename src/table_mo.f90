@@ -758,27 +758,43 @@ contains
 
     class(table_ty), intent(in) :: this
     character(*),    intent(in) :: file
-    integer i, u
+    integer i, u, iostat
 
-    open ( newunit = u, file = file, status = 'unknown' )
+    open ( newunit = u, file = file, status = 'unknown', iostat = iostat )
+    if ( iostat /= 0 ) then
+      write ( *, '(a,i0)' ) '[table_mo.f90:write_csv] *** Error: failed to open '//trim(file)//', iostat=', iostat
+      return
+    end if
 
-    write ( u, '(a)' ) get_csvline_from_cells( this%colnames )
+    write ( u, '(a)', iostat = iostat ) get_csvline_from_cells( this%colnames )
+    if ( iostat /= 0 ) then
+      write ( *, '(a,i0)' ) '[table_mo.f90:write_csv] *** Error: failed to write header, iostat=', iostat
+      close ( u )
+      return
+    end if
 
     do i = 1, this%nrows
-      write ( u, '(a)' ) get_csvline_from_cells( this%cell(i, :) )
+      write ( u, '(a)', iostat = iostat ) get_csvline_from_cells( this%cell(i, :) )
+      if ( iostat /= 0 ) then
+        write ( *, '(a,i0,a,i0)' ) '[table_mo.f90:write_csv] *** Error: failed to write row ', i, ', iostat=', iostat
+        close ( u )
+        return
+      end if
     end do
 
     close ( u )
 
   end subroutine write_csv
 
-  subroutine write_parquet ( this, file, print )
+  subroutine write_parquet ( this, file, print, stat )
 
-    class(table_ty), intent(in) :: this
-    character(*),    intent(in) :: file
-    character(:), allocatable   :: csv
-    logical, optional           :: print
-    logical                     :: print_
+    class(table_ty), intent(in)         :: this
+    character(*),    intent(in)         :: file
+    logical, optional                   :: print
+    integer, optional, intent(out)      :: stat
+    character(:), allocatable           :: csv
+    logical                             :: print_
+    integer                             :: stat_
 
     if ( present( print ) ) then
       print_ = print
@@ -788,27 +804,69 @@ contains
 
     csv = file(1:len_trim(file)-8)//'.csv'
     call write_csv( this, csv )
-    call csv2parquet( csv, file )
+    call csv2parquet( csv, file, stat = stat_ )
+    if ( stat_ /= 0 ) then
+      if ( present(stat) ) then
+        stat = stat_
+        return
+      else
+        error stop 'write_parquet: csv2parquet failed'
+      end if
+    end if
     if ( print_ ) then
       call execute_command_line( 'duckdb -c "SELECT * FROM '//"'"//trim(file)//"'"//'"' )
     end if
+    if ( present(stat) ) stat = 0
 
   end subroutine write_parquet
 
-  subroutine csv2parquet ( csv, parquet )
+  subroutine csv2parquet ( csv, parquet, stat )
 
     ! Note. duckdb is required
 
-    character(*), intent(in)  :: csv, parquet
-    character(:), allocatable :: query
+    character(*), intent(in)            :: csv, parquet
+    integer,      intent(out), optional :: stat
+    character(:), allocatable :: query, parquet_tmp
+    integer :: exitstat, cmdstat
+    character(255) :: cmdmsg
+
+    parquet_tmp = trim(parquet)//'.tmp'
 
     ! Do not include TIMESTAMP-related column types,
     ! or duckdb automatically converts datetime to UTC datatime.
     query = "COPY (SELECT * FROM read_csv('"//trim(csv)//&
           "', auto_type_candidates = ['BOOLEAN', 'BIGINT', 'DOUBLE', 'VARCHAR'])) TO '"//&
-          trim(parquet)//"' (FORMAT 'parquet')"
+          trim(parquet_tmp)//"' (FORMAT 'parquet')"
     !print *, 'query: ', trim(query)
-    call execute_command_line( 'duckdb -c "'//trim(query)//'"' )
+    call execute_command_line( 'duckdb -c "'//trim(query)//'"', &
+      exitstat = exitstat, cmdstat = cmdstat, cmdmsg = cmdmsg )
+
+    if ( cmdstat /= 0 .or. exitstat /= 0 ) then
+      ! Clean up temp file on failure
+      call execute_command_line( 'rm -f '//trim(parquet_tmp) )
+      if ( present(stat) ) then
+        stat = merge( cmdstat, exitstat, cmdstat /= 0 )
+        return
+      else
+        error stop 'csv2parquet failed: '//trim(cmdmsg)
+      end if
+    end if
+
+    ! Atomic rename
+    call execute_command_line( 'mv '//trim(parquet_tmp)//' '//trim(parquet), &
+      exitstat = exitstat, cmdstat = cmdstat, cmdmsg = cmdmsg )
+
+    if ( cmdstat /= 0 .or. exitstat /= 0 ) then
+      call execute_command_line( 'rm -f '//trim(parquet_tmp) )
+      if ( present(stat) ) then
+        stat = merge( cmdstat, exitstat, cmdstat /= 0 )
+        return
+      else
+        error stop 'csv2parquet mv failed: '//trim(cmdmsg)
+      end if
+    end if
+
+    if ( present(stat) ) stat = 0
 
   end subroutine csv2parquet
 
@@ -1608,8 +1666,6 @@ contains
     else
       desc_ = .false.
     end if
-
-    call table%print
 
     j = findloc( adjustl(table%colnames), table%key, dim = 1 )
 
