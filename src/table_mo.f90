@@ -1,5 +1,7 @@
 module table_mo
 
+  use ifport, only: getpid   ! PID for unique intermediate-csv names in write_parquet
+
   implicit none
 
   private
@@ -793,8 +795,9 @@ contains
     logical, optional                   :: print
     integer, optional, intent(out)      :: stat
     character(:), allocatable           :: csv
-    logical                             :: print_
-    integer                             :: stat_
+    logical                             :: print_, csv_exists
+    integer                             :: stat_, pid
+    character(16)                       :: pid_str
 
     if ( present( print ) ) then
       print_ = print
@@ -802,9 +805,39 @@ contains
       print_ = .false.
     end if
 
-    csv = file(1:len_trim(file)-8)//'.csv'
+    ! Use PID-tagged unique intermediate so a stale csv from a prior run
+    ! (especially one root-owned by a systemd container that the current
+    ! user-mode process cannot overwrite) cannot be silently recycled.
+    ! Old design: csv = '<file>.csv' (fixed name) → root-owned stale csv
+    ! survives, write_csv prints error and returns, csv2parquet emits
+    ! parquet from STALE csv. New design: each process writes its own
+    ! '<file>.<pid>.csv' and deletes it after csv2parquet. Stale csvs
+    ! from prior runs can't be picked up because the filename differs.
+    ! See memory note: feedback_writeparquet_csv_pipeline.md
+    pid = getpid()
+    write ( pid_str, '(i0)' ) pid
+    csv = file(1:len_trim(file)-8)//'.'//trim(pid_str)//'.csv'
+
     call write_csv( this, csv )
+
+    ! Verify the per-PID temp csv actually exists before handing off to
+    ! csv2parquet — write_csv might have failed (e.g., disk full, missing
+    ! parent dir) and that should not silently produce a parquet.
+    inquire( file = csv, exist = csv_exists )
+    if ( .not. csv_exists ) then
+      write (*, '(a)') '[table_mo.f90:write_parquet] *** Error: write_csv did not produce '//trim(csv)// &
+                       ' — aborting.'
+      if ( present(stat) ) then
+        stat = 1
+        return
+      else
+        error stop 'write_parquet: write_csv produced no file'
+      end if
+    end if
+
     call csv2parquet( csv, file, stat = stat_ )
+    ! Clean up temp csv (best-effort; stale temp would only confuse).
+    call execute_command_line( 'rm -f '//trim(csv) )
     if ( stat_ /= 0 ) then
       if ( present(stat) ) then
         stat = stat_
@@ -836,7 +869,7 @@ contains
     ! or duckdb automatically converts datetime to UTC datatime.
     query = "COPY (SELECT * FROM read_csv('"//trim(csv)//&
           "', auto_type_candidates = ['BOOLEAN', 'BIGINT', 'DOUBLE', 'VARCHAR'])) TO '"//&
-          trim(parquet_tmp)//"' (FORMAT 'parquet')"
+          trim(parquet_tmp)//"' (FORMAT 'parquet', COMPRESSION ZSTD)"
     !print *, 'query: ', trim(query)
     call execute_command_line( 'duckdb -c "'//trim(query)//'"', &
       exitstat = exitstat, cmdstat = cmdstat, cmdmsg = cmdmsg )
