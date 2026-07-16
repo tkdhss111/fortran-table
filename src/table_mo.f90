@@ -30,6 +30,7 @@ module table_mo
     integer                       :: nrows = 0
     integer                       :: ncols = 0
     character(LEN_C), allocatable :: rownames(:), colnames(:)
+    character(LEN_C), allocatable :: coltypes(:)         ! per-col parquet write override ('' = auto; 'TIMESTAMP' = CAST to naive JST TIMESTAMP, no tz)
     character(LEN_C), allocatable :: cell(:, :)
     character(LEN_C)              :: key  = ''
     character(255)                :: name, file
@@ -53,10 +54,12 @@ module table_mo
     generic   :: to_real        => to_real_colindex,         to_real_colname
     procedure :: from_character_colindex, from_logical_colindex, from_integer_colindex, from_real_colindex
     procedure :: from_character_colname,  from_logical_colname,  from_integer_colname,  from_real_colname
+    procedure :: from_timestamp_colindex, from_timestamp_colname
     generic   :: from_character => from_character_colindex, from_character_colname
     generic   :: from_logical   => from_logical_colindex,   from_logical_colname
     generic   :: from_integer   => from_integer_colindex,   from_integer_colname
     generic   :: from_real      => from_real_colindex,      from_real_colname
+    generic   :: from_timestamp => from_timestamp_colindex, from_timestamp_colname
     procedure :: inner_join, left_join, right_join
     procedure :: insert_or_replace, append, unique_by_key
     procedure :: write_csv, read_csv, write_parquet
@@ -99,11 +102,15 @@ contains
 
     if ( allocated( this%rownames ) ) deallocate( this%rownames )
     if ( allocated( this%colnames ) ) deallocate( this%colnames )
+    if ( allocated( this%coltypes ) ) deallocate( this%coltypes )
     if ( allocated( this%cell     ) ) deallocate( this%cell     )
 
     allocate( this%rownames(nrows) )
     allocate( this%colnames(ncols) )
+    allocate( this%coltypes(ncols) )
     allocate( this%cell(nrows, ncols) )
+
+    this%coltypes = ''
 
     this%nrows = nrows
     this%ncols = ncols
@@ -794,9 +801,9 @@ contains
     character(*),    intent(in)         :: file
     logical, optional                   :: print
     integer, optional, intent(out)      :: stat
-    character(:), allocatable           :: csv
+    character(:), allocatable           :: csv, ts_replace, item
     logical                             :: print_, csv_exists
-    integer                             :: stat_, pid
+    integer                             :: stat_, pid, j
     character(16)                       :: pid_str
 
     if ( present( print ) ) then
@@ -835,7 +842,25 @@ contains
       end if
     end if
 
-    call csv2parquet( csv, file, stat = stat_ )
+    ! Build a `* REPLACE (...)` clause for any columns flagged TIMESTAMP by
+    ! from_timestamp, so csv2parquet casts them to naive JST TIMESTAMP while
+    ! every other column keeps its auto-inferred type via `*` (unchanged).
+    ts_replace = ''
+    if ( allocated( this%coltypes ) ) then
+      do j = 1, this%ncols
+        if ( trim(this%coltypes(j)) == 'TIMESTAMP' ) then
+          item = 'CAST('//trim(adjustl(this%colnames(j)))//' AS TIMESTAMP) AS '// &
+                 trim(adjustl(this%colnames(j)))
+          if ( len(ts_replace) == 0 ) then
+            ts_replace = item
+          else
+            ts_replace = ts_replace//', '//item
+          end if
+        end if
+      end do
+    end if
+
+    call csv2parquet( csv, file, stat = stat_, replace = ts_replace )
     ! Clean up temp csv (best-effort; stale temp would only confuse).
     call execute_command_line( 'rm -f '//trim(csv) )
     if ( stat_ /= 0 ) then
@@ -853,21 +878,29 @@ contains
 
   end subroutine write_parquet
 
-  subroutine csv2parquet ( csv, parquet, stat )
+  subroutine csv2parquet ( csv, parquet, stat, replace )
 
     ! Note. duckdb is required
 
     character(*), intent(in)            :: csv, parquet
     integer,      intent(out), optional :: stat
-    character(:), allocatable :: query, parquet_tmp
+    character(*), intent(in),  optional :: replace   ! `* REPLACE (...)` body for TIMESTAMP casts
+    character(:), allocatable :: query, parquet_tmp, select_clause
     integer :: exitstat, cmdstat
     character(255) :: cmdmsg
 
     parquet_tmp = trim(parquet)//'.tmp'
 
-    ! Do not include TIMESTAMP-related column types,
-    ! or duckdb automatically converts datetime to UTC datatime.
-    query = "COPY (SELECT * FROM read_csv('"//trim(csv)//&
+    ! TIMESTAMP is deliberately kept out of auto_type_candidates: auto-inferring a
+    ! datetime yields TIMESTAMP WITH TIME ZONE and shifts JST->UTC. Instead, columns
+    ! flagged via from_timestamp are cast explicitly with `* REPLACE (CAST(col AS
+    ! TIMESTAMP) AS col)` -> plain naive TIMESTAMP (wall-clock JST, no tz). Columns
+    ! not flagged keep their auto-inferred type through the bare `*`.
+    select_clause = '*'
+    if ( present( replace ) ) then
+      if ( len_trim( replace ) > 0 ) select_clause = '* REPLACE ('//trim(replace)//')'
+    end if
+    query = "COPY (SELECT "//select_clause//" FROM read_csv('"//trim(csv)//&
           "', auto_type_candidates = ['BOOLEAN', 'BIGINT', 'DOUBLE', 'VARCHAR'])) TO '"//&
           trim(parquet_tmp)//"' (FORMAT 'parquet', COMPRESSION ZSTD)"
     !print *, 'query: ', trim(query)
@@ -898,6 +931,17 @@ contains
         error stop 'csv2parquet mv failed: '//trim(cmdmsg)
       end if
     end if
+
+    ! Publish _SUCCESS marker next to the parquet (Hadoop convention).
+    ! Downstream consumers can stat its mtime as a "producer finished
+    ! publishing" signal that does not require parsing the parquet.
+    ! Best-effort: a touch failure does not abort the publish.
+    block
+      integer :: islash
+      islash = index( parquet, '/', back = .true. )
+      if ( islash > 0 ) call execute_command_line( &
+        'touch -- "'//parquet(1:islash)//'_SUCCESS"' )
+    end block
 
     if ( present(stat) ) stat = 0
 
@@ -1936,6 +1980,27 @@ contains
      write ( table%cell(i, j), * ) vals(i)
     end do
   end subroutine from_real_colname
+
+  ! Store formatted datetime strings ('YYYY-MM-DD HH:MM:SS') AND flag the column
+  ! so write_parquet emits `CAST(col AS TIMESTAMP) AS col` (naive JST, no tz).
+  ! Values are set exactly like from_character; only the type flag differs.
+  subroutine from_timestamp_colindex ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    character(*),    intent(in)    :: vals(table%nrows)
+    integer,         intent(in)    :: col
+    table%cell(:, col)  = vals
+    table%coltypes(col) = 'TIMESTAMP'
+  end subroutine from_timestamp_colindex
+
+  subroutine from_timestamp_colname ( table, vals, col )
+    class(table_ty), intent(inout) :: table
+    character(*),    intent(in)    :: vals(table%nrows)
+    character(*),    intent(in)    :: col
+    integer :: j
+    j = findloc( adjustl(table%colnames), col, dim = 1 )
+    table%cell(:, j)  = vals
+    table%coltypes(j) = 'TIMESTAMP'
+  end subroutine from_timestamp_colname
 
   elemental pure logical function is_eq ( x, ref )
     real, intent(in) :: x
