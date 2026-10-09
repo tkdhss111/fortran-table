@@ -713,7 +713,8 @@ contains
     class(table_ty),        intent(in) :: table1
     type(table_ty),         intent(in) :: table2
     type(table_ty)                     :: table3
-    integer i1, i2, j_key, k
+    integer,           allocatable     :: i1(:) ! First table1 row holding each table2 key (0 = absent)
+    integer i2, j_key, k
 
     ! Find key columns (shall be the same column index for both tables)
     j_key = findloc( adjustl(table1%colnames), table1%key, dim = 1 )
@@ -726,11 +727,18 @@ contains
     associate ( key1 => table1%cell(:, j_key), &
                 key2 => table2%cell(:, j_key) )
 
-    call table3%init( nrows    = size(union ( key1, key2 )), &
-                      ncols    = table1%ncols,               &
-                      colnames = table1%colnames,            &
-                      name     = table1%name,                &
-                      key      = table1%key,                 &
+    ! Sort-based lookup instead of a table1 scan per table2 row: the scan was
+    ! O(n1*n2) string compares, e.g. a 92k-row hourly table + an 8760-row year
+    ! = 8e8 compares per call, called once per year per run (tkd-tso-denki-yoho
+    ! pinned 2 vCPUs for ~9 min every 5-min cycle on it). Same result: replaced
+    ! rows keep their table1 position, new rows are appended in table2 order.
+    i1 = match_first( key1, key2 )
+
+    call table3%init( nrows    = table1%nrows + count( i1 == 0 ), &
+                      ncols    = table1%ncols,                     &
+                      colnames = table1%colnames,                  &
+                      name     = table1%name,                      &
+                      key      = table1%key,                       &
                       file     = table1%file )
 
     table3%cell(1:table1%nrows, :) = table1%cell
@@ -739,16 +747,11 @@ contains
 
     do i2 = 1, table2%nrows
 
-      ! Replace
-      do i1 = 1, table1%nrows
-        if ( key1(i1) == key2(i2) ) then
-          table3%cell(i1, :) = table2%cell(i2, :)
-          exit
-        end if
-      end do
-
-      ! Append
-      if ( i1 > table1%nrows ) then
+      if ( i1(i2) > 0 ) then
+        ! Replace
+        table3%cell(i1(i2), :) = table2%cell(i2, :)
+      else
+        ! Append
         table3%cell(k, :) = table2%cell(i2, :)
         k = k + 1
       end if
@@ -1264,34 +1267,111 @@ contains
     character(LEN_C), intent(in)  :: set1(:)
     character(LEN_C), intent(in)  :: set2(:)
     character(LEN_C), allocatable :: cup(:)
-    logical,          allocatable :: dup(:)
-    integer i1, i2, n1, n2, n, ndups
 
-    n1 = size(set1)
-    n2 = size(set2)
-
-    allocate( dup(n2), source = .false. )
-
-    do concurrent ( i2 = 1:n2 )
-      do concurrent ( i1 = 1:n1 )
-        if ( set1(i1) == set2(i2) ) then
-            dup(i2) = .true.
-        end if
-      end do
-    end do
-
-    ndups = count( dup )
-
-    if ( ndups == 0 ) then
-      cup = [ set1, set2 ]
-    else
-      n = n1 + n2 - ndups
-      allocate( cup(n) )
-      cup(1:n1) = set1
-      cup(n1+1:n) = pack( set2, .not. dup )
-    end if
+    ! set2 elements absent from set1 are appended in set2 order (duplicates
+    ! within set2 are kept, as before). Sort-based: see match_first.
+    cup = [ set1, pack( set2, match_first( set1, set2 ) == 0 ) ]
 
   end function union
+
+  ! Index of the first set1 element equal to each set2 element (0 = absent).
+  ! O((n1 + n2) log n1): stable sort of set1, then a binary search per set2
+  ! element. Stability makes the lowest index win among equal set1 keys,
+  ! which is what the linear scans it replaces returned.
+  pure function match_first ( set1, set2 ) result ( idx )
+
+    character(LEN_C), intent(in) :: set1(:)
+    character(LEN_C), intent(in) :: set2(:)
+    integer,          allocatable :: idx(:)
+    integer,          allocatable :: ii(:)
+    integer i2, n1, lo, hi, mid
+
+    n1 = size(set1)
+
+    allocate( idx(size(set2)), source = 0 )
+
+    if ( n1 == 0 ) return
+
+    ii = stable_order( set1 )
+
+    do i2 = 1, size(set2)
+      ! Lower bound: first sorted position whose key is >= set2(i2)
+      lo = 1
+      hi = n1 + 1
+      do while ( lo < hi )
+        mid = ( lo + hi ) / 2
+        if ( set1(ii(mid)) < set2(i2) ) then
+          lo = mid + 1
+        else
+          hi = mid
+        end if
+      end do
+      if ( lo <= n1 ) then
+        if ( set1(ii(lo)) == set2(i2) ) idx(i2) = ii(lo)
+      end if
+    end do
+
+  end function match_first
+
+  ! Indices that put keys in ascending order; equal keys keep their input
+  ! order (bottom-up merge sort, so it stays pure and needs no recursion).
+  pure function stable_order ( keys ) result ( ii )
+
+    character(LEN_C), intent(in) :: keys(:)
+    integer,          allocatable :: ii(:)
+    integer,          allocatable :: tmp(:)
+    integer i, j, k, n, lo, mid, hi, width
+
+    n = size(keys)
+
+    ii = [ ( i, i = 1, n ) ]
+
+    allocate( tmp(n) )
+
+    width = 1
+
+    do while ( width < n )
+
+      do lo = 1, n, 2 * width
+
+        mid = min( lo + width - 1, n )
+        hi  = min( lo + 2 * width - 1, n )
+        i   = lo
+        j   = mid + 1
+        k   = lo
+
+        do while ( i <= mid .and. j <= hi )
+          if ( keys(ii(j)) < keys(ii(i)) ) then ! Strict: a tie takes the left run (stable)
+            tmp(k) = ii(j)
+            j = j + 1
+          else
+            tmp(k) = ii(i)
+            i = i + 1
+          end if
+          k = k + 1
+        end do
+
+        do while ( i <= mid )
+          tmp(k) = ii(i)
+          i = i + 1
+          k = k + 1
+        end do
+
+        do while ( j <= hi )
+          tmp(k) = ii(j)
+          j = j + 1
+          k = k + 1
+        end do
+
+      end do
+
+      ii = tmp
+
+      width = 2 * width
+
+    end do
+
+  end function stable_order
 
   pure function intersect ( set1, set2 ) result ( cap )
 
